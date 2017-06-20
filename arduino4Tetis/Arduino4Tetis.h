@@ -5,12 +5,19 @@
 #include <Arduino.h>
 #include "ShieldJoystick.h"
 
+/* HELPFUL UNIT CONVERSION */
+#define QDTORAD (2*PI/(4 * ENCODER_CPR)) // rad / quadcounts
+#define RADSTORPM (60/(2*PI)) // (rad/s) / rpm
+#define RADTOGRAD (180/PI) // grad/rad
+
 /* MATLAB PLOTTING MODE*/
+#define TO_MATLAB // if defined sends data to be plotted to Matlab
 #define MATLAB_PLOT_SAMPLE_T 50 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-#define TWO_MOTOR_TEST
-#define KP_SIMU 0.1 // factor to adjust the simulated system faster dynamics
+#define SIMU_MODE // simulation mode
+#define TWO_MOTOR_TEST // 2 motors simulated + 2 real
+
 
 /* DEBUG MODE */
 #undef DEBUG_MODE // take off warning
@@ -26,23 +33,23 @@
 #define KP (float)1 // actuator control proportional gain
 #define INIT_Q_MAX_ERROR 0.1 // max error(qd-q)[rad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
-#define Q_INIT_POSITION {0.1, (-PI/2) + 0.1, 0.1, 0.1} // initial pos[rad] joints in initial joint control (space of the joints)
+#define Q_INIT_POSITION [0, -PI/4, PI/2, -PI/4 } // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
 
 /* ACTUATOR SYSTEM CONFIG */
 #define NUMBEROFNODES 4
-#define MOTOR_REDUCTION 21 // 21:1
-#define ENCODER_CPR 500 // incremental enconder counts per revolution
-#define MAX_VELOCITY 6250 // velocity limit move [rpm]
-#define MAX_ACCELERATION 6250 // max acceleration [rpm]
-// vector with the initial angle[rad] of each joint
-// TETIS : {0, -PI/2, 0, 0}
-// #define JOINTS_INIT_VALS {0, 0}
+#define NODEID_OFFSET 0 // Offset of nodes ID(1st should be ID=1)
+#define MOTOR_REDUCTION {21, 21, 21, 21} // 21:1
+#define ENCODER_CPR 500// incremental enconder counts per revolution
+#define MAX_VELOCITY {6250, 6250, 6250, 6250} // velocity limit move [rpm @ motor]
+#define MAX_ACCELERATION {6250, 6250, 6250, 6250} // max acceleration [rpm/s @ motor]
 #define JOINTS_INIT_VALS {0, -PI/2, 0, 0}
+#define J_LIMIT_OVP_ALLWD 0.1 / RADTOGRAD // allowed overpass of joint limit [rad]
 
 
 /* ARDUINO BOARD CONFIG */
 #define SPI_CS_PIN  10
+#define CAN_BAUDRATE CAN_500KBPS // Can network baudrate
 
 
 /* TETIS SPECIFIC DATA */
@@ -58,9 +65,6 @@
 #define TPDO1_IN_TIME 1000 // inhibit time =  TPDO1_IN_TIME * 10exp(-6)s
 #define TPDO1_TR_TYPE 1 // 255: async, 253: async on RTR only, 1:sync
 
-/* HELPFUL UNIT CONVERSION */
-#define QDTORAD (2*PI/(4 * ENCODER_CPR)) // rad / quadcounts
-#define RADSTORPM (60/(2*PI)) // (rad/s) / rpm
 
 /* GLOBAL VARIABLES */
 extern long unsigned h; // Sampling time(ms) for the control loops

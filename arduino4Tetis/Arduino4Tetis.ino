@@ -17,11 +17,15 @@ long unsigned h = SAMP_TIME; // Sampling time(ms) for the control loops
 long unsigned tLastExec; // time(ms)loop was last executed
 long unsigned tDelay; // delay from time iteration was supposed to start
 
-long unsigned tLastPlot; // time(ms) last plot in Matlab
+long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 
 float r_h[NUMBEROFNODES]; // position read at joystick at h
 float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1
 
+
+unsigned int motorReduction[NUMBEROFNODES] = MOTOR_REDUCTION;
+unsigned int maxVelocity[NUMBEROFNODES] = MAX_VELOCITY; // velocity limit move [rpm @ motor]
+unsigned int maxAcceleration[NUMBEROFNODES] =  MAX_ACCELERATION; // max acceleration [rpm/s @ motor]
 
 float xd_h[NUMBEROFNODES]; // desired position of the actuator at h(space of the joints)
 float xd_h_1[NUMBEROFNODES]; // desired position of the actuator at h-1(space of the joints)
@@ -63,8 +67,8 @@ MCP_CAN CAN(SPI_CS_PIN);
 enum ControlType
 {
   JointControl,
-  Cartesian,
-  ProportionalFF
+  Joystick,
+  Trajectory
 };
 ControlType ControlType;
 
@@ -72,17 +76,21 @@ ControlType ControlType;
 
 void uSet(){
   // writes to EPOS the values stored in control variable u (via SDO)
+  unsigned int numNodes = NUMBEROFNODES;
+  byte SETRPM[8] = {0x23, 0x6B, 0x20, 0x00,0,0,0,0};
+  long rpm;
+
   /* TESTING PURPOSES*/
   #ifdef TWO_MOTOR_TEST
-  unsigned int numNodes = 2;
-  #else
-  unsigned int numNodes = NUMBEROFNODES;
+  numNodes = 2;
+  #endif
+  #ifdef SIMU_MODE
+  numNodes = NUMBEROFNODES;
   #endif
   /* END OF TESTING PURPOSES*/
-  byte SETRPM[8] = {0x23, 0x6B, 0x20, 0x00,0,0,0,0};;
-  long rpm;
+
   #ifndef FORGET_JLMITS_COLIS
-  // Check inminet collision & joint limits
+  // Check inminent collision & joint limits
   if(tetisCheckColision() || tetisCheckJointLimits()){
     // danger: set control to zero
     for(int i = 0; i < NUMBEROFNODES; i++){
@@ -92,10 +100,11 @@ void uSet(){
   #endif
 
   for(unsigned int nodeNum = 1 ; nodeNum <= numNodes ; nodeNum++){
+
     // check saturation
-    if (u[nodeNum - 1] * RADSTORPM > MAX_VELOCITY){
+    #ifndef FORGET_SATURATION
+    if (u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] > maxVelocity[nodeNum - 1]){
       // if control > max veloc -> saturate output
-      #ifndef FORGET_SATURATION
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
@@ -104,7 +113,7 @@ void uSet(){
       /* END OF DEBUGGING PURPOSES */
       u[nodeNum - 1] = MAX_VELOCITY / RADSTORPM;
     }
-    else if( u[nodeNum - 1] * RADSTORPM < -MAX_VELOCITY ){
+    else if( u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] < - maxVelocity[nodeNum - 1]){
       // if control > -max veloc -> saturate output
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
@@ -114,24 +123,25 @@ void uSet(){
       /* END OF DEBUGGING PURPOSES */
       u[nodeNum - 1] = - (MAX_VELOCITY / RADSTORPM);
     }
-    #endif
+    #endif // #ifndef FORGET_SATURATION
+
     // set rpm to EPOS
-    rpm = u[nodeNum - 1] * RADSTORPM;
+    rpm = u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1];
     byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
     for(int i = 0; i < 4; i++){
       SETRPM[i + 4] = rpmBytes[i];
     }
-    CAN.sendMsgBuf(0x600 + nodeNum,0,8,SETRPM);
+    CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET,0,8,SETRPM);
     printMsgCheck();
   }
 }
 
-inline void setVelocity(int nodeNum, long rpm){
+void setVelocity(int nodeNum, long rpm){
   // sets to EPOS the target velocity for joint nodeNum passed in rpm (via SDO)
     word nodeID = 0x600 + nodeNum;
     byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
     byte SETRPM[8] = {0x23, 0x6B, 0x20, 0x00, rpmBytes[0], rpmBytes[1], rpmBytes[2], rpmBytes[3]};
-    CAN.sendMsgBuf(nodeID,0,8,SETRPM);
+    CAN.sendMsgBuf(nodeID + NODEID_OFFSET,0,8,SETRPM);
     printMsgCheck();
   }
 
@@ -174,7 +184,10 @@ inline void setVelocity(int nodeNum, long rpm){
 bool tetisCheckJointLimits(){
   // Tetis specific function: checks if any joint has exceeded its mechanical
   // limit (returns true if so)
-      if ( q[1] > 0 || q[1] < -PI/2 || q[2] > PI || q[2] < -PI || q[3] > PI || q[3] < -PI )
+      if (  q[1] > 0  + J_LIMIT_OVP_ALLWD || q[1] < -PI/2 - J_LIMIT_OVP_ALLWD
+         || q[2] > PI + J_LIMIT_OVP_ALLWD || q[2] < -PI   - J_LIMIT_OVP_ALLWD
+         || q[3] > PI + J_LIMIT_OVP_ALLWD || q[3] < -PI   - J_LIMIT_OVP_ALLWD
+       )
       {
           Serial.println("WARN: tetisCheckJointLimits(): Joints execeded limits");
           return true;
@@ -182,17 +195,17 @@ bool tetisCheckJointLimits(){
       else return false;
   }
 
-inline void readTPDO1(word CANID){
+void readTPDO1(word CANID){
   // reads TPDO1 and saves it to q and qdot
     word nodeNum = CANID - 0x180;
     float velInRpm, posInRad;
     long unsigned posInQuadCounts;
     long* auxPointer1 =  (long*) buf;
-    velInRpm = (float)(*auxPointer1) / MOTOR_REDUCTION ;
+    velInRpm = (float)(*auxPointer1) / motorReduction[nodeNum - 1];
     long unsigned* auxPointer2 =  (long unsigned*) (buf + 4);
     posInQuadCounts = *auxPointer2;
     qdot[nodeNum - 1] = velInRpm / RADSTORPM;
-    posInRad = (float)posInQuadCounts * QDTORAD / MOTOR_REDUCTION;
+    posInRad = (float)posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1];
     q[nodeNum - 1] = posInRad - qoffset[nodeNum - 1] + qinit[nodeNum - 1];
 
     /*  DEBUGGING PURPOSES */
@@ -216,25 +229,37 @@ inline void readTPDO1(word CANID){
 }
 
 void CANListener(){
+  word CANID;
+  unsigned char nodesRemaining = NUMBEROFNODES;
+
   /* TESTING PURPOSES */
   #ifdef TWO_MOTOR_TEST
-  unsigned char nodesRemaining = 2;
+  nodesRemaining = 2;
   for(int i = 2; i < NUMBEROFNODES; i++){
-    u[i] = KP_SIMU * u[i]; // adjust the simulated system
     q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
     qdot[i] = u[i];
   }
-  #else
-  unsigned char nodesRemaining = NUMBEROFNODES;
+  #endif
+  #ifdef SIMU_MODE
+  nodesRemaining = 0;
+  for(int i = 0; i < NUMBEROFNODES; i++){
+    q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
+    qdot[i] = u[i];
+  }
   #endif
   /* END OF TESTING PURPOSES */
-  word CANID;
+
   CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-  do{ // read buffer until all nodes have responded to the sync
+  while(nodesRemaining > 0){
+    // read buffer until all nodes have responded to the sync
     CAN.readMsgBuf(&len, buf);
     CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
-    if(CANID == 0x80){/* Sync objetc sucessfuly sent */}
-    else if( CANID > 0x180 && CANID <= 0x180 + NUMBEROFNODES ){
+    if(CANID == 0x80){
+      #ifdef DEBUG_MODE
+      Serial.println("DEBUG: CANListener(): Sync object sucessfuly sent");
+      #endif
+    }
+    else if( CANID > 0x180 + NODEID_OFFSET && CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET){
       nodesRemaining--;
       readTPDO1(CANID);
     }
@@ -249,38 +274,49 @@ void CANListener(){
       Serial.println();
       #endif
     }
-  }while(nodesRemaining > 0);
+  }
 }
 
 void plotXInMatlab(){
+  static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    Serial.print("ToMatlab:\t");
+    Serial.print("ToMatlabX:\t");
     for(int i = 0; i < NUMBEROFNODES; i++){
       Serial.print(xd_h[i]); Serial.print("\t");
     }
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(u[i]); Serial.print("\t");
-    }
-    for(int i = 0; i < NUMBEROFNODES; i++){
       Serial.print(x[i]); Serial.print("\t");
     }
+    Serial.print(millis() - tInitPlot); Serial.print("\t");
     Serial.println();
     tLastPlot = millis();
   }
 }
 
 void plotQInMatlab(){
+  static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    Serial.print("ToMatlab:\t");
+    Serial.print("ToMatlabQ:\t");
     for(int i = 0; i < NUMBEROFNODES; i++){
       Serial.print(qd[i]); Serial.print("\t");
     }
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(u[i]); Serial.print("\t");
-    }
-    for(int i = 0; i < NUMBEROFNODES; i++){
       Serial.print(q[i]); Serial.print("\t");
     }
+    Serial.print(millis() - tInitPlot); Serial.print("\t");
+    Serial.println();
+    tLastPlot = millis();
+  }
+}
+
+void plotUInMatlab(){
+  static long unsigned tLastPlot;
+  if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
+    Serial.print("ToMatlabU:\t");
+    for(int i = 0; i < NUMBEROFNODES; i++){
+      Serial.print(u[i]); Serial.print("\t");
+    }
+    Serial.print(millis() - tInitPlot); Serial.print("\t");
     Serial.println();
     tLastPlot = millis();
   }
@@ -290,13 +326,16 @@ void setup()
 {
     Serial.begin(115200); // init serial comunication (USB->Arduino)
     Serial.println("--------------------------------------");
-    while (CAN_OK != CAN.begin(CAN_500KBPS))     // init can bus : baudrate = 500k
+    while (CAN_OK != CAN.begin(CAN_BAUDRATE))     // init can bus : baudrate = 500k
     {
-        Serial.println("CAN BUS Shield init fail");
-        Serial.println(" Init CAN BUS Shield again");
+        Serial.println("WARN: setup(): CAN BUS Shield init fail");
+        Serial.println("WARN: setup(): Init CAN BUS Shield again");
         delay(100);
     }
-    Serial.println("CAN BUS Shield init ok!");
+    #ifdef DEBUG_MODE
+    Serial.println("DEBUG: setup(): CAN BUS Shield init ok");
+    #endif
+
     setupShieldJoystick(); // init joystick on the shield
     toAllNodesSDO(FAULTRESET,0); //Clear all errors in all nodes
     CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
@@ -311,7 +350,7 @@ void setup()
 
     jointsOutSingular();// take the joints out of singular position
 
-    ControlType = ProportionalFF;
+    ControlType = Trajectory;
     // initXPosition(); // take actuator to an initial postition
 
     // ControlType = JointControl;
@@ -343,44 +382,38 @@ void loop()
     tLastExec = millis();
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)
-    // if(tetisCheckColision() || tetisCheckJointLimits()){
-    //   // danger: set control to zero
-    //   for(int i = 0; i < NUMBEROFNODES; i++){
-    //     u[i] = 0.0;
-    //   }
-    // }
-    if (false){} // take off when uncomment the if avobe
-    else{
-      // calculate control
-      switch (ControlType){
-        case JointControl :
-          #ifdef DEBUG_MODE
-          Serial.println("DEBUG: loop(): entering joint pos control");
-          #endif
-          jointPosControl();
-          break;
-        case Cartesian :
-          #ifdef DEBUG_MODE
-          Serial.println("DEBUG: loop(): entering cartesian control");
-          #endif
-          updateDirectKinematics();
-          joystickControl();
-          break;
-        case ProportionalFF :
-          #ifdef DEBUG_MODE
-          Serial.println("DEBUG: loop(): entering trajectory mode control");
-          #endif
-          updateDirectKinematics();
-          trajectoryControl();
-          break;
-        default :
-          Serial.println("DEBUG: loop(): Type of control invalid or not specifed");
-      }
+    // calculate control
+    switch (ControlType){
+      case JointControl :
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: loop(): entering joint pos control");
+        #endif
+        jointPosControl();
+        break;
+      case Joystick :
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: loop(): entering cartesian control");
+        #endif
+        updateDirectKinematics();
+        joystickControl();
+        break;
+      case Trajectory :
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: loop(): entering trajectory mode control");
+        #endif
+        updateDirectKinematics();
+        trajectoryControl();
+        break;
+      default :
+        Serial.println("DEBUG: loop(): Type of control invalid or not specifed");
     }
     uSet(); // send control signal to nodes
 
-    // plotQInMatlab();
+    #ifdef TO_MATLAB
+    plotQInMatlab();
     plotXInMatlab();
+    plotUInMatlab();
+    #endif
   }
 }
 
