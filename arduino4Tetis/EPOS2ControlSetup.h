@@ -7,7 +7,7 @@
 void setupTPDOs();
 void setupVelocityMode();
 void setInitialVals();
-void jointsOutSingular();
+void initQPosition();
 void initXPosition();
 
 #endif // EPOS2CONTROLSETUP_H

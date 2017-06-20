@@ -15,8 +15,8 @@
 #define MATLAB_PLOT_SAMPLE_T 50 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-#define SIMU_MODE // simulation mode
-#define TWO_MOTOR_TEST // 2 motors simulated + 2 real
+#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+// #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 
 /* DEBUG MODE */
@@ -29,11 +29,11 @@
 #define SAMP_TIME 60 // Sampling time (ms) for the control loops
 #define PERMT_DELAY 5 // Acceptable delay (ms) for each loop
 #define GAMMA 10 // gamma constant of first order filter in joystick control
-#define KJ (float)85// joint control proportional gain
-#define KP (float)1 // actuator control proportional gain
-#define INIT_Q_MAX_ERROR 0.1 // max error(qd-q)[rad] allowed in initial joint control out of singular
+#define KJ {4.0, 4.0, 4.0, 4.0} // joint control proportional gain
+#define KP {1.0, 1.0, 1.0, 1.0} // actuator control proportional gain
+#define INIT_Q_MAX_ERROR 0.1 / RADTOGRAD // max error(qd-q)[rad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
-#define Q_INIT_POSITION [0, -PI/4, PI/2, -PI/4 } // initial pos[rad] joints in initial joint control (space of the joints)
+#define Q_INIT_POSITION {0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
 
 /* ACTUATOR SYSTEM CONFIG */
@@ -75,7 +75,11 @@ extern long unsigned tLastPlot; // time(ms) last plot in Matlab
 extern float r_h[NUMBEROFNODES]; // position read at joystick at h
 extern float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1
 
+extern unsigned int motorReduction[NUMBEROFNODES];
+extern unsigned int maxVelocity[NUMBEROFNODES]; // velocity limit move [rpm @ motor]
+extern unsigned int maxAcceleration[NUMBEROFNODES];// max acceleration [rpm/s @ motor]
 
+extern float kp[NUMBEROFNODES]; // actuator control proportional gain
 extern float xd_h[NUMBEROFNODES]; // desired position of the actuator at h(space of the joints)
 extern float xd_h_1[NUMBEROFNODES]; // desired position of the actuator at h-1(space of the joints)
 extern float xddot_h[NUMBEROFNODES]; // UNUSED???desired velocity of the actuator at h(space of the joints)
@@ -84,6 +88,7 @@ extern float xddot_h_1[NUMBEROFNODES]; // desired velocity of the actuator at h-
 extern float qd[NUMBEROFNODES]; // desired position[rad] for each joint (space of the joints)
 
 extern float x[NUMBEROFNODES]; // actual position of the actuator (space of the actuator)
+extern float kj[NUMBEROFNODES]; // joint control proportional gain
 extern float q[NUMBEROFNODES]; // actual position[rad] of each joint(space of the joints)
 extern float qdot[NUMBEROFNODES]; // actual velocity [rad/s] of each joint(space of the joints)
 

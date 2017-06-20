@@ -29,7 +29,7 @@ void initXPosition(){
   }while(maxError > INIT_X_MAX_ERROR);
   // leave actuator in that position -> zero control
   for(int i = 0; i < NUMBEROFNODES; i++){
-    u[i] = 0;
+    u[i] = 0.0;
   }
   uSet();
   #ifdef DEBUG_MODE
@@ -40,7 +40,7 @@ void initXPosition(){
 
 
 
-void jointsOutSingular(){
+void initQPosition(){
   // Initial Joint control to take them out of singular position
   float q0[NUMBEROFNODES] = Q_INIT_POSITION;
   float maxError; // max error out of all joints
@@ -56,7 +56,7 @@ void jointsOutSingular(){
       if(abs(error[i]) > maxError) maxError = abs(error[i]);
     }
     #ifdef DEBUG_MODE
-    Serial.print("DEBUG: jointsOutSingular(): Max error: "); Serial.println(maxError);
+    Serial.print("DEBUG: initQPosition(): Max error: "); Serial.println(maxError);
     #endif
   }while(maxError > INIT_Q_MAX_ERROR);
   // leave joints in that position -> zero control
@@ -65,7 +65,7 @@ void jointsOutSingular(){
   }
   uSet();
   #ifdef DEBUG_MODE
-  Serial.println("DEBUG: jointsOutSingular(): Exitting");
+  Serial.println("DEBUG: initQPosition(): Exitting");
   #endif
 }
 
@@ -102,8 +102,9 @@ void setupVelocityMode(){
   byte MAX_ACC[8] = {0x23, 0xC5, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00};
   byte MODE_VELOCITY[8] = {0x2F, 0x60, 0x60, 0x00, 0xFE, 0x00, 0x00, 0x00};
   byte ZERO_INITIAL_VELOCITY[8] = {0x23, 0x6B, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00};
-  unsigned long maxProfVelocity = MAX_VELOCITY;
-  unsigned long maxAcceleration = MAX_ACCELERATION;
+
+  unsigned long maxProfVelocity = 6250;
+  unsigned long maxAcceleration = 6250;
   // to be able to acces value byte by byte
   byte* maxProfVelocBytes = (byte*) &maxProfVelocity;
   byte* maxAcceleratBytes = (byte*) &maxAcceleration;
@@ -121,22 +122,27 @@ void setupVelocityMode(){
 
 void setInitialVals(){
   //sets initial values of position(incremental encoder)
-  #ifdef TWO_MOTOR_TEST
-  unsigned int numNodes = 2;
-  u[3] = u[4] = 0.0;
-  #else
-  unsigned int numNodes = NUMBEROFNODES;
-  #endif
   byte READINCENCOD1[8] = {0x40, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00};
   long unsigned posInQuadCounts;
   long unsigned* auxPointer;
+  unsigned int numNodes = NUMBEROFNODES;
+
+  #ifdef TWO_MOTOR_TEST
+  numNodes = 2;
+  u[2] = u[3] = 0.0;
+  #endif
+  #ifdef SIMU_MODE
+  numNodes = 0;
+  u[0] = u[1] = u[2] = u[3] = 0.0;
+  #endif
+
   for(word nodeNum = 1; nodeNum <= numNodes; nodeNum++){
-    CAN.sendMsgBuf(0x600 + nodeNum,0,8,READINCENCOD1);
+    CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET,0,8,READINCENCOD1);
     delay(10);
     do{
       // keep printing everything in the buffer until Receiving SDO found
       printMsgCheck();
-    }while(COBId != 0x580 + nodeNum && buf[0] != 43);
+    }while(COBId != 0x580 + nodeNum + NODEID_OFFSET && buf[0] != 43);
     auxPointer = (long unsigned*) (buf + 4);
     posInQuadCounts = *auxPointer;
     // /* DEBUGGING PURPOSES */
@@ -145,7 +151,8 @@ void setInitialVals(){
     // Serial.print(" : "); Serial.println(posInQuadCounts);
     // #endif
     // /* END OF DEBUGGING PURPOSES */
-    qoffset[nodeNum - 1] = (float)posInQuadCounts * QDTORAD / MOTOR_REDUCTION;
+    qoffset[nodeNum - 1] = (float)posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1];
     u[nodeNum - 1] = 0.0; // Set init control variable to 0 for safety
   }
+
 }

@@ -27,6 +27,8 @@ unsigned int motorReduction[NUMBEROFNODES] = MOTOR_REDUCTION;
 unsigned int maxVelocity[NUMBEROFNODES] = MAX_VELOCITY; // velocity limit move [rpm @ motor]
 unsigned int maxAcceleration[NUMBEROFNODES] =  MAX_ACCELERATION; // max acceleration [rpm/s @ motor]
 
+
+float kp[NUMBEROFNODES] = KP; // actuator control proportional gain
 float xd_h[NUMBEROFNODES]; // desired position of the actuator at h(space of the joints)
 float xd_h_1[NUMBEROFNODES]; // desired position of the actuator at h-1(space of the joints)
 float xddot_h[NUMBEROFNODES]; // UNUSED???desired velocity of the actuator at h(space of the joints)
@@ -36,6 +38,7 @@ float qd[NUMBEROFNODES]; // desired position[rad] for each joint (space of the j
 
 float x[NUMBEROFNODES]; // actual position of the actuator (space of the actuator)
 
+float kj[NUMBEROFNODES] = KJ; // joint control proportional gain
 float q[NUMBEROFNODES]; // actual position[rad] of each joint(space of the joints)
 float qdot[NUMBEROFNODES]; // actual velocity [rad/s] of each joint(space of the joints)
 
@@ -108,20 +111,22 @@ void uSet(){
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[i] = "); Serial.println(u[nodeNum - 1]);
+      Serial.print(" saturated. u[i] = "); Serial.print(u[nodeNum - 1]);
+      Serial.print(" maxVelocity[i] = "); Serial.println(maxVelocity[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = MAX_VELOCITY / RADSTORPM;
+      u[nodeNum - 1] = maxVelocity[nodeNum - 1] / RADSTORPM;
     }
     else if( u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] < - maxVelocity[nodeNum - 1]){
       // if control > -max veloc -> saturate output
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[i] = "); Serial.println(u[nodeNum - 1]);
+      Serial.print(" saturated. u[i] = "); Serial.print(u[nodeNum - 1]);
+      Serial.print(" maxVelocity[i] = "); Serial.println(maxVelocity[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = - (MAX_VELOCITY / RADSTORPM);
+      u[nodeNum - 1] = - (maxVelocity[nodeNum - 1] / RADSTORPM);
     }
     #endif // #ifndef FORGET_SATURATION
 
@@ -348,7 +353,7 @@ void setup()
 
     delay(500); //let al the SDOs be attended
 
-    jointsOutSingular();// take the joints out of singular position
+    initQPosition();// take the joints out of singular position
 
     ControlType = Trajectory;
     // initXPosition(); // take actuator to an initial postition
