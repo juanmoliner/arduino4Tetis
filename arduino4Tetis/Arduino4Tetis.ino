@@ -285,14 +285,14 @@ void CANListener(){
 void plotXInMatlab(){
   static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    Serial.print("ToMatlabX:\t");
+    Serial.print("ToMatlabX: ");
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(xd_h[i], MATLAB_PREC); Serial.print("\t");
+      Serial.print(xd_h[i], MATLAB_PREC); Serial.print(" ");
     }
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(x[i], MATLAB_PREC); Serial.print("\t");
+      Serial.print(x[i], MATLAB_PREC); Serial.print(" ");
     }
-    Serial.print(millis() - tInitPlot); Serial.print("\t");
+    Serial.print(millis() - tInitPlot); Serial.print(" ");
     Serial.println();
     tLastPlot = millis();
   }
@@ -301,14 +301,14 @@ void plotXInMatlab(){
 void plotQInMatlab(){
   static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    Serial.print("ToMatlabQ:\t");
+    Serial.print("ToMatlabQ: ");
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(qd[i], MATLAB_PREC); Serial.print("\t");
+      Serial.print(qd[i] * RADTODEG, MATLAB_PREC); Serial.print(" ");
     }
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(q[i], MATLAB_PREC); Serial.print("\t");
+      Serial.print(q[i] * RADTODEG, MATLAB_PREC); Serial.print(" ");
     }
-    Serial.print(millis() - tInitPlot); Serial.print("\t");
+    Serial.print(millis() - tInitPlot); Serial.print(" ");
     Serial.println();
     tLastPlot = millis();
   }
@@ -317,11 +317,11 @@ void plotQInMatlab(){
 void plotUInMatlab(){
   static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    Serial.print("ToMatlabU:\t");
+    Serial.print("ToMatlabU: ");
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(u[i],MATLAB_PREC); Serial.print("\t");
+      Serial.print(u[i] * RADTODEG,MATLAB_PREC); Serial.print(" ");
     }
-    Serial.print(millis() - tInitPlot); Serial.print("\t");
+    Serial.print(millis() - tInitPlot); Serial.print(" ");
     Serial.println();
     tLastPlot = millis();
   }

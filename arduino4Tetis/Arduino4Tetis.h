@@ -24,8 +24,8 @@
 
 
 /* DEBUG MODE */
-#undef DEBUG_MODE // take off warning
-// #define DEBUG_MODE
+// #undef DEBUG_MODE // take off warning
+#define DEBUG_MODE
 #define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
@@ -36,7 +36,7 @@
 #define GAMMA 10 // gamma constant of first order filter in joystick control
 #define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain
 #define KP {1.0, 1.0, 1.0, 1.0} // actuator control proportional gain
-#define INIT_Q_MAX_ERROR 0.1 // max error(qd-q)[grad] allowed in initial joint control out of singular
+#define INIT_Q_MAX_ERROR 0.3 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
 #define Q_INIT_POSITION {0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
@@ -54,7 +54,7 @@
 
 /* ARDUINO BOARD CONFIG */
 #define SPI_CS_PIN  53 // Uno: 10, Mega: 53
-#define USB_BAUDRATE 115200 // USB serial baudrate, used for debugging (9600,115200,921600)
+#define USB_BAUDRATE 921600 // USB serial baudrate, used for debugging (9600,115200,921600)
 #define CAN_BAUDRATE CAN_500KBPS // Can network baudrate
 
 

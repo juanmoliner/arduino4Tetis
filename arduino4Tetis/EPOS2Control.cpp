@@ -31,10 +31,11 @@ void proportionalFF(){
   /* DEBUGGING PURPOSES */
   #ifdef DEBUG_MODE
   for (int i = 0; i < NUMBEROFNODES; i++){
-    Serial.print("DEBUG: proportionalFF(): i = "); Serial.println(i+1);
-    Serial.print("DEBUG: proportionalFF(): : xdi[mm] = "); Serial.println(xd_h[i],DEBUG_PREC);
-    Serial.print("DEBUG: proportionalFF(): xi[mm] = ");Serial.println(x[i],DEBUG_PREC);
-    Serial.print("DEBUG: proportionalFF(): ui[rad/s] = ");Serial.println(u[i],DEBUG_PREC);
+    Serial.print("DEBUG: proportionalFF(): i = "); Serial.print(i+1);
+    Serial.print(" ui[rad/s] = ");Serial.print(u[i],DEBUG_PREC);
+    Serial.print(" xdi[mm] = "); Serial.print(xd_h[i],DEBUG_PREC);
+    Serial.print(" xi[mm] = ");Serial.println(x[i],DEBUG_PREC);
+
   }
   #endif
   /* END OF DEBUGGING PURPOSES */
@@ -56,6 +57,8 @@ void trajectoryControl(){
   xd_h[3] = 0.5235;
   xddot_h[0] = xddot_h[1] = xddot_h[2] = xddot_h[3] = 0.0;
   //
+
+
 
 
   proportionalFF();
@@ -87,10 +90,10 @@ void jointPosControl(){
     u[i] = kj[i] * error[i];
     /* DEBUGGING PURPOSES */
     #ifdef DEBUG_MODE
-    Serial.print("DEBUG: JointPosControl(): Joint: "); Serial.println(i+1);
-    Serial.print("DEBUG: JointPosControl(): qd[deg] = "); Serial.println(qd[i] * RADTODEG, DEBUG_PREC);
-    Serial.print("DEBUG: JointPosControl(): q[deg] = ");Serial.println(q[i] * RADTODEG, DEBUG_PREC);
-    Serial.print("DEBUG: JointPosControl(): u[rad/s] = ");Serial.println(u[i], DEBUG_PREC);
+    Serial.print("DEBUG: JointPosControl(): Joint: "); Serial.print(i+1);
+    Serial.print(" u[rad/s] = ");Serial.print(u[i], DEBUG_PREC);
+    Serial.print(" qd[deg] = "); Serial.print(qd[i] * RADTODEG, DEBUG_PREC);
+    Serial.print(" q[deg] = ");Serial.println(q[i] * RADTODEG, DEBUG_PREC);
     #endif
     /* END OF DEBUGGING PURPOSES */
   }
