@@ -20,7 +20,7 @@
 
 /*  TEST MODE */
 // #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
-// #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
+#define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 
 /* DEBUG MODE */
@@ -31,7 +31,7 @@
 /* CONTROL PARAMETERS*/
 #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
 // #define FORGET_SATURATION // define to take off saturation limits
-#define SAMP_TIME 80 // Sampling time (ms) for the control loops
+#define SAMP_TIME 40 // Sampling time (ms) for the control loops
 #define PERMT_DELAY 5 // Acceptable delay (ms) for each loop
 #define GAMMA 10 // gamma constant of first order filter in joystick control
 #define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain
@@ -53,8 +53,8 @@
 
 
 /* ARDUINO BOARD CONFIG */
-#define SPI_CS_PIN  10
-#define USB_BAUDRATE 9600 // USB serial baudrate, used for debugging
+#define SPI_CS_PIN  53 // Uno: 10, Mega: 53
+#define USB_BAUDRATE 115200 // USB serial baudrate, used for debugging (9600,115200,921600)
 #define CAN_BAUDRATE CAN_500KBPS // Can network baudrate
 
 

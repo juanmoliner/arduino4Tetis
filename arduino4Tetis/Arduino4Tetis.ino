@@ -326,11 +326,17 @@ void plotUInMatlab(){
     tLastPlot = millis();
   }
 }
+void initMatlab(){
+  // Sends command to beging Matlab data aquisition
+  Serial.println("--BEGIN OF MATLAB TRANSMISSION--");
+}
 
 void setup()
 {
     Serial.begin(USB_BAUDRATE); // init serial comunication (USB->Arduino)
-    Serial.println("--------------------------------------");
+    #ifdef DEBUG_MODE
+    Serial.println("----------------- RESTART ------------------");
+    #endif
     while (CAN_OK != CAN.begin(CAN_BAUDRATE))     // init can bus : baudrate = 500k
     {
         Serial.println("WARN: setup(): CAN BUS Shield init fail");
@@ -340,7 +346,9 @@ void setup()
     #ifdef DEBUG_MODE
     Serial.println("DEBUG: setup(): CAN BUS Shield init ok");
     #endif
-
+    #ifdef TO_MATLAB
+    initMatlab();
+    #endif
     setupShieldJoystick(); // init joystick on the shield
     toAllNodesSDO(FAULTRESET,0); //Clear all errors in all nodes
     CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
@@ -363,16 +371,6 @@ void setup()
     //   qd[i] = PI;
     // }
 
-    // for(int i = 0; i < NUMBEROFNODES; i++){
-    //   u[i] = 500.0 / RADSTORPM;
-    // }
-    // uSet();
-    // delay(500);
-
-    // #ifdef TWO_MOTOR_TEST
-    // q[3] = PI*0.99;
-    // q[2] = PI*0.99;
-    // #endif
 }
 
 
