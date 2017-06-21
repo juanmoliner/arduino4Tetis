@@ -24,8 +24,8 @@ float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1
 
 
 unsigned int motorReduction[NUMBEROFNODES] = MOTOR_REDUCTION;
-unsigned int maxVelocity[NUMBEROFNODES] = MAX_VELOCITY; // velocity limit move [rpm @ motor]
-unsigned int maxAcceleration[NUMBEROFNODES] =  MAX_ACCELERATION; // max acceleration [rpm/s @ motor]
+float maxVelocity[NUMBEROFNODES] = MAX_VELOCITY; // velocity limit move [rpm @ motor]
+float maxAcceleration[NUMBEROFNODES] =  MAX_ACCELERATION; // max acceleration [rpm/s @ motor]
 
 
 float kp[NUMBEROFNODES] = KP; // actuator control proportional gain
@@ -88,7 +88,7 @@ void uSet(){
   numNodes = 2;
   #endif
   #ifdef SIMU_MODE
-  numNodes = NUMBEROFNODES;
+  numNodes = 0;
   #endif
   /* END OF TESTING PURPOSES*/
 
@@ -102,34 +102,34 @@ void uSet(){
   }
   #endif
 
-  for(unsigned int nodeNum = 1 ; nodeNum <= numNodes ; nodeNum++){
 
-    // check saturation
-    #ifndef FORGET_SATURATION
+  // check saturation
+  #ifndef FORGET_SATURATION
+  for(unsigned int nodeNum = 1 ; nodeNum <= NUMBEROFNODES ; nodeNum++){
     if (u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] > maxVelocity[nodeNum - 1]){
       // if control > max veloc -> saturate output
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[i] = "); Serial.print(u[nodeNum - 1]);
-      Serial.print(" maxVelocity[i] = "); Serial.println(maxVelocity[nodeNum - 1]);
+      Serial.print(" saturated. u[i][rad] = "); Serial.print(u[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = maxVelocity[nodeNum - 1] / RADSTORPM;
+      u[nodeNum - 1] = maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1];
     }
     else if( u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] < - maxVelocity[nodeNum - 1]){
       // if control > -max veloc -> saturate output
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[i] = "); Serial.print(u[nodeNum - 1]);
-      Serial.print(" maxVelocity[i] = "); Serial.println(maxVelocity[nodeNum - 1]);
+      Serial.print(" saturated. u_eje[i][rad] = "); Serial.print(u[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = - (maxVelocity[nodeNum - 1] / RADSTORPM);
+      u[nodeNum - 1] = - (maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1]);
     }
+  }
     #endif // #ifndef FORGET_SATURATION
 
+  for(unsigned int nodeNum = 1 ; nodeNum <= numNodes ; nodeNum++){
     // set rpm to EPOS
     rpm = u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1];
     byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
@@ -287,10 +287,10 @@ void plotXInMatlab(){
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
     Serial.print("ToMatlabX:\t");
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(xd_h[i]); Serial.print("\t");
+      Serial.print(xd_h[i], MATLAB_PREC); Serial.print("\t");
     }
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(x[i]); Serial.print("\t");
+      Serial.print(x[i], MATLAB_PREC); Serial.print("\t");
     }
     Serial.print(millis() - tInitPlot); Serial.print("\t");
     Serial.println();
@@ -303,10 +303,10 @@ void plotQInMatlab(){
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
     Serial.print("ToMatlabQ:\t");
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(qd[i]); Serial.print("\t");
+      Serial.print(qd[i], MATLAB_PREC); Serial.print("\t");
     }
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(q[i]); Serial.print("\t");
+      Serial.print(q[i], MATLAB_PREC); Serial.print("\t");
     }
     Serial.print(millis() - tInitPlot); Serial.print("\t");
     Serial.println();
@@ -319,7 +319,7 @@ void plotUInMatlab(){
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
     Serial.print("ToMatlabU:\t");
     for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(u[i]); Serial.print("\t");
+      Serial.print(u[i],MATLAB_PREC); Serial.print("\t");
     }
     Serial.print(millis() - tInitPlot); Serial.print("\t");
     Serial.println();
@@ -329,8 +329,9 @@ void plotUInMatlab(){
 
 void setup()
 {
-    Serial.begin(115200); // init serial comunication (USB->Arduino)
+    Serial.begin(USB_BAUDRATE); // init serial comunication (USB->Arduino)
     Serial.println("--------------------------------------");
+    Serial.println("Got here :D");
     while (CAN_OK != CAN.begin(CAN_BAUDRATE))     // init can bus : baudrate = 500k
     {
         Serial.println("WARN: setup(): CAN BUS Shield init fail");
@@ -382,7 +383,7 @@ void loop()
   if((millis() - tLastExec >= h)){
     tDelay = millis() - tLastExec - h;
     if(tDelay > PERMT_DELAY && tLastExec != 0){
-      Serial.print("WARN: Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
+      Serial.print("WARN: loop(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
     }
     tLastExec = millis();
     CANListener(); // get data from EPOS nodes in CAN bus

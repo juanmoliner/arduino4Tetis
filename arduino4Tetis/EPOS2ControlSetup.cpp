@@ -47,18 +47,29 @@ void initQPosition(){
   for(int i = 0; i < NUMBEROFNODES; i++){
     qd[i] = q0[i];
   }
+
   do{
-    maxError = 0; // resets the maximum error
-    CANListener(); // get data from EPOS nodes in CAN bus
-    jointPosControl();
-    uSet();
-    for(int i = 0; i < NUMBEROFNODES; i++){
-      if(abs(error[i]) > maxError) maxError = abs(error[i]);
+    if((millis() - tLastExec >= h)){
+      tDelay = millis() - tLastExec - h;
+      if(tDelay > PERMT_DELAY && tLastExec != 0){
+        Serial.print("WARN: initQPosition(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
+      }
+      tLastExec = millis();
+      maxError = 0; // resets the maximum error
+      CANListener(); // get data from EPOS nodes in CAN bus
+      jointPosControl();
+      uSet();
+      plotQInMatlab();
+      plotUInMatlab();
+      for(int i = 0; i < NUMBEROFNODES; i++){
+        if(abs(error[i]) > maxError) maxError = abs(error[i]);
+      }
+      #ifdef DEBUG_MODE
+      Serial.print("DEBUG: initQPosition(): Max error[deg]: "); Serial.print(maxError * RADTODEG,4);
+      Serial.print(" Max error allowed[deg] : "); Serial.println(INIT_Q_MAX_ERROR,4);
+      #endif
     }
-    #ifdef DEBUG_MODE
-    Serial.print("DEBUG: initQPosition(): Max error: "); Serial.println(maxError);
-    #endif
-  }while(maxError > INIT_Q_MAX_ERROR);
+  }while(maxError * RADTODEG > INIT_Q_MAX_ERROR);
   // leave joints in that position -> zero control
   for(int i = 0; i < NUMBEROFNODES; i++){
     u[i] = 0;

@@ -7,31 +7,36 @@
 
 /* HELPFUL UNIT CONVERSION */
 #define QDTORAD (2*PI/(4 * ENCODER_CPR)) // rad / quadcounts
-#define RADSTORPM (60/(2*PI)) // (rad/s) / rpm
-#define RADTOGRAD (180/PI) // grad/rad
+#define RADTOQD ((4 * ENCODER_CPR)/ 2*PI)
+#define RADSTORPM (60/(2*PI)) // rpm /(rad/s)
+#define RPMTORADS ((2*PI)/60)
+#define RADTODEG (180/PI) // grad/rad
+#define DEGTORAD (PI/180)
 
 /* MATLAB PLOTTING MODE*/
 #define TO_MATLAB // if defined sends data to be plotted to Matlab
-#define MATLAB_PLOT_SAMPLE_T 50 //Matlab plotting sample time(ms)
+#define MATLAB_PREC 4 // number of decimals to send to Matlab
+#define MATLAB_PLOT_SAMPLE_T 40 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
 // #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 
 /* DEBUG MODE */
 #undef DEBUG_MODE // take off warning
-#define DEBUG_MODE
+// #define DEBUG_MODE
+#define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
-// #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
+#define FORGET_JLMITS_COLIS // define to take of joint and colision limits
 // #define FORGET_SATURATION // define to take off saturation limits
-#define SAMP_TIME 60 // Sampling time (ms) for the control loops
+#define SAMP_TIME 80 // Sampling time (ms) for the control loops
 #define PERMT_DELAY 5 // Acceptable delay (ms) for each loop
 #define GAMMA 10 // gamma constant of first order filter in joystick control
-#define KJ {4.0, 4.0, 4.0, 4.0} // joint control proportional gain
+#define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain
 #define KP {1.0, 1.0, 1.0, 1.0} // actuator control proportional gain
-#define INIT_Q_MAX_ERROR 0.1 / RADTOGRAD // max error(qd-q)[rad] allowed in initial joint control out of singular
+#define INIT_Q_MAX_ERROR 0.1 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
 #define Q_INIT_POSITION {0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
@@ -44,11 +49,12 @@
 #define MAX_VELOCITY {6250, 6250, 6250, 6250} // velocity limit move [rpm @ motor]
 #define MAX_ACCELERATION {6250, 6250, 6250, 6250} // max acceleration [rpm/s @ motor]
 #define JOINTS_INIT_VALS {0, -PI/2, 0, 0}
-#define J_LIMIT_OVP_ALLWD 0.1 / RADTOGRAD // allowed overpass of joint limit [rad]
+#define J_LIMIT_OVP_ALLWD 0.1 / RADTODEG // allowed overpass of joint limit [rad]
 
 
 /* ARDUINO BOARD CONFIG */
 #define SPI_CS_PIN  10
+#define USB_BAUDRATE 9600 // USB serial baudrate, used for debugging
 #define CAN_BAUDRATE CAN_500KBPS // Can network baudrate
 
 
@@ -69,6 +75,7 @@
 /* GLOBAL VARIABLES */
 extern long unsigned h; // Sampling time(ms) for the control loops
 extern long unsigned tLastExec; // time(ms)loop was last executed
+extern long unsigned tDelay; // delay from time iteration was supposed to start
 
 extern long unsigned tLastPlot; // time(ms) last plot in Matlab
 
@@ -76,8 +83,8 @@ extern float r_h[NUMBEROFNODES]; // position read at joystick at h
 extern float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1
 
 extern unsigned int motorReduction[NUMBEROFNODES];
-extern unsigned int maxVelocity[NUMBEROFNODES]; // velocity limit move [rpm @ motor]
-extern unsigned int maxAcceleration[NUMBEROFNODES];// max acceleration [rpm/s @ motor]
+extern float maxVelocity[NUMBEROFNODES]; // velocity limit move [rpm @ motor]
+extern float maxAcceleration[NUMBEROFNODES];// max acceleration [rpm/s @ motor]
 
 extern float kp[NUMBEROFNODES]; // actuator control proportional gain
 extern float xd_h[NUMBEROFNODES]; // desired position of the actuator at h(space of the joints)
@@ -119,6 +126,9 @@ bool tetisCheckColision();
 bool tetisCheckJointLimits();
 void uSet();
 void CANListener();
+void plotQInMatlab();
+void plotXInMatlab();
+void plotUInMatlab();
 
 
 #endif  // EPOS2CONTROL_H
