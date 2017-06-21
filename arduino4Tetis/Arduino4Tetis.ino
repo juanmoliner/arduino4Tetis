@@ -331,7 +331,6 @@ void setup()
 {
     Serial.begin(USB_BAUDRATE); // init serial comunication (USB->Arduino)
     Serial.println("--------------------------------------");
-    Serial.println("Got here :D");
     while (CAN_OK != CAN.begin(CAN_BAUDRATE))     // init can bus : baudrate = 500k
     {
         Serial.println("WARN: setup(): CAN BUS Shield init fail");
