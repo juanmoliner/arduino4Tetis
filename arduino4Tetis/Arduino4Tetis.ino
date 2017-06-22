@@ -111,7 +111,7 @@ void uSet(){
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[i][rad] = "); Serial.print(u[nodeNum - 1]);
+      Serial.print(" saturated. u[i][rad] = "); Serial.println(u[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
       u[nodeNum - 1] = maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1];
@@ -121,7 +121,7 @@ void uSet(){
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u_eje[i][rad] = "); Serial.print(u[nodeNum - 1]);
+      Serial.print(" saturated. u[i][rad] = "); Serial.println(u[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
       u[nodeNum - 1] = - (maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1]);
@@ -214,7 +214,7 @@ void readTPDO1(word CANID){
     q[nodeNum - 1] = posInRad - qoffset[nodeNum - 1] + qinit[nodeNum - 1];
 
     /*  DEBUGGING PURPOSES */
-    // #ifdef DEBUG_MODE
+    #ifdef DEBUG_MODE
     // Serial.print("RPM of node "); Serial.print(nodeNum);Serial.print(": ");
     // Serial.print(velInRpm,10); Serial.println();
     // Serial.print("rad/s of node "); Serial.print(nodeNum);Serial.print(": ");
@@ -229,7 +229,7 @@ void readTPDO1(word CANID){
     // Serial.print(q[nodeNum - 1]); Serial.println();
     // Serial.print("Control variable u[Rad] of node "); Serial.print(nodeNum); Serial.print(": ");
     // Serial.print(u[nodeNum - 1]); Serial.println();
-    // #endif
+    #endif
     /*  END OF DEBUGGING PURPOSES */
 }
 
@@ -359,13 +359,13 @@ void setup()
     toAllNodesSDO(ONANDENABLE,0); // Send Switch On & Enable operation command to all nodes
     CAN.sendMsgBuf(0x000,0,2,OPERATIONAL); printMsgCheck(); // NMT: set CanOpen to Operational
 
-    delay(500); //let al the SDOs be attended
+    delay(10); //let al the SDOs be attended
 
     initQPosition();// take the joints out of singular position
 
     ControlType = Trajectory;
     // initXPosition(); // take actuator to an initial postition
-
+    // delay(1000);
     // ControlType = JointControl;
     // for(int i = 0; i < NUMBEROFNODES; i++){
     //   qd[i] = PI;
@@ -395,7 +395,7 @@ void loop()
         break;
       case Joystick :
         #ifdef DEBUG_MODE
-        Serial.println("DEBUG: loop(): entering cartesian control");
+        Serial.println("DEBUG: loop(): entering joystick control");
         #endif
         updateDirectKinematics();
         joystickControl();

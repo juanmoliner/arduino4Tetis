@@ -16,22 +16,21 @@
 /* MATLAB PLOTTING MODE*/
 #define TO_MATLAB // if defined sends data to be plotted to Matlab
 #define MATLAB_PREC 4 // number of decimals to send to Matlab
-#define MATLAB_PLOT_SAMPLE_T 40 //Matlab plotting sample time(ms)
+#define MATLAB_PLOT_SAMPLE_T 30 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
-#define TWO_MOTOR_TEST // 2 motors simulated + 2 real
-
+#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+// #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
 // #undef DEBUG_MODE // take off warning
-#define DEBUG_MODE
-#define DEBUG_PREC 3 // number of decimals to show in debug mode
+// #define DEBUG_MODE
+// #define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
 #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
 // #define FORGET_SATURATION // define to take off saturation limits
-#define SAMP_TIME 40 // Sampling time (ms) for the control loops
+#define SAMP_TIME 30 // Sampling time (ms) for the control loops
 #define PERMT_DELAY 5 // Acceptable delay (ms) for each loop
 #define GAMMA 10 // gamma constant of first order filter in joystick control
 #define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain

@@ -46,19 +46,39 @@ void trajectoryControl(){
   // Follows a predefined trajectory in the space of the actuator
   // Control: Proportional + Feedforward (space of the actuator)
 
-  // unsigned long t = tLastExec;
+  float t = tLastExec / 1000.0;
+  const float wn = PI / 10;
 
   // evaluate trajectory
 
   // Luis Gustavo Exp1 (6.4.1)
-  xd_h[0] = 500;
-  xd_h[1] = -50;
-  xd_h[2] = -150;
-  xd_h[3] = 0.5235;
-  xddot_h[0] = xddot_h[1] = xddot_h[2] = xddot_h[3] = 0.0;
+  // xd_h[0] = 500;
+  // xd_h[1] = -50;
+  // xd_h[2] = -150;
+  // xd_h[3] = 0.5235;
+  // xddot_h[0] = xddot_h[1] = xddot_h[2] = xddot_h[3] = 0.0;
+
+  //Luis Gustavo Exp 6.5.1
+  // xd_h[0] = 75 * (sin(wn * t) + sin(4 * wn * t)) + 500;
+  // xd_h[1] = 57.0;
+  // xd_h[2] = 75 * (cos(wn * t) + cos(4 * wn * t)) - 67;
+  // xd_h[3] = wn * sin(wn * t);
   //
+  // xddot_h[0] = 75 * wn * cos(wn * t) + 300 * wn * cos(4 * wn * t);
+  // xddot_h[1] = 0;
+  // xddot_h[2] = -75 * wn * sin(wn * t) - 300 * wn * sin(4 * wn * t);
+  // xddot_h[3] = wn * wn * cos(wn * t);
 
+  //Luis Gustavo Exp 6.5.1
+  xd_h[0] = ((100 * cos(t)) / (sin(t) * sin(t) + 1)) + 500;
+  xd_h[1] = 57.0;
+  xd_h[2] = ((100 * cos(t) * sin(t)) / (sin(t) * sin(t) + 1)) - 50;
+  xd_h[3] = 0.0;
 
+  xddot_h[0] = (100 * sin(t) * (sin(t) * sin(t) - 3)) / ((sin(t) * sin(t) + 1) * (sin(t) * sin(t) + 1));
+  xddot_h[1] = 0.0;
+  xddot_h[2] = - (300 *  sin(t) * sin(t) - 100) / ((sin(t) * sin(t) + 1) * (sin(t) * sin(t) + 1));
+  xddot_h[3] = 0.0;
 
 
   proportionalFF();
