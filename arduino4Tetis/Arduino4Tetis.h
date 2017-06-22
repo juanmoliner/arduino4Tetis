@@ -19,13 +19,13 @@
 #define MATLAB_PLOT_SAMPLE_T 30 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
-// #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
+// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+#define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
 // #undef DEBUG_MODE // take off warning
-// #define DEBUG_MODE
-// #define DEBUG_PREC 3 // number of decimals to show in debug mode
+#define DEBUG_MODE
+#define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
 #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
@@ -34,10 +34,10 @@
 #define PERMT_DELAY 5 // Acceptable delay (ms) for each loop
 #define GAMMA 10 // gamma constant of first order filter in joystick control
 #define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain
-#define KP {1.0, 1.0, 1.0, 1.0} // actuator control proportional gain
+#define KP {1.0, 1.0, 1.0, 0.1} // actuator control proportional gain
 #define INIT_Q_MAX_ERROR 0.3 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
-#define Q_INIT_POSITION {0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
+#define Q_INIT_POSITION {-PI/2, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
 
 /* ACTUATOR SYSTEM CONFIG */
@@ -46,7 +46,7 @@
 #define MOTOR_REDUCTION {21, 21, 21, 21} // 21:1
 #define ENCODER_CPR 500// incremental enconder counts per revolution
 #define MAX_VELOCITY {6250, 6250, 6250, 6250} // velocity limit move [rpm @ motor]
-#define MAX_ACCELERATION {6250, 6250, 6250, 6250} // max acceleration [rpm/s @ motor]
+#define MAX_ACCELERATION {650, 650, 650, 650} // max acceleration [rpm/s @ motor]
 #define JOINTS_INIT_VALS {0, -PI/2, 0, 0}
 #define J_LIMIT_OVP_ALLWD 0.1 / RADTODEG // allowed overpass of joint limit [rad]
 
@@ -102,7 +102,7 @@ extern float u[NUMBEROFNODES]; // control variable angular velocity [rad/s]
 extern float ubar[NUMBEROFNODES]; // auxiliary control variable angular velocity [rad/s]
 extern float error[NUMBEROFNODES]; // error  defined as: e = xd -x
 
-extern float qoffset[NUMBEROFNODES]; // initial read of incremental encoder
+extern long unsigned encQdOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
 extern float qinit[NUMBEROFNODES];  // initial angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
 
 extern float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
@@ -112,6 +112,7 @@ extern float JN[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the actuator (join
 
 extern Joystick shieldJoystick;
 
+extern byte SYNC[2];
 extern byte OPERATIONAL[2];
 extern byte PREOPERATIONAL[2];
 

@@ -46,7 +46,7 @@ float u[NUMBEROFNODES]; // control variable angular velocity [rad/s]
 float ubar[NUMBEROFNODES]; // auxiliary control variable angular velocity [rad/s]
 float error[NUMBEROFNODES]; // error  defined as: e = xd -x
 
-float qoffset[NUMBEROFNODES]; // initial read of incremental encoder
+long unsigned encQdOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
 float qinit[NUMBEROFNODES] = JOINTS_INIT_VALS;  // initial angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
 
 float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
@@ -57,13 +57,14 @@ float JN[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the actuator (joint n)
 
 Joystick shieldJoystick;
 
-byte SYNC[2] ={0x00, 0x00};
-byte OPERATIONAL[2] ={0x01, 0};
-byte PREOPERATIONAL[2] ={0x80, 0};
+byte SYNC[2] = {0x00, 0x00};
+byte OPERATIONAL[2] = {0x01, 0};
+byte PREOPERATIONAL[2] ={ 0x80, 0};
 
-byte SHUTDOWN[8] ={0x2B, 0x40, 0x60, 0x00, 0x06, 0x00, 0x00, 0x00};
-byte FAULTRESET[8] ={0x2B, 0x40, 0x60, 0x00, 0x80, 0x00, 0x00, 0x00};
-byte ONANDENABLE[8] ={0x2B, 0x40, 0x60, 0x00, 0x0F, 0x00, 0x00, 0x00};
+byte DISABLEVOLTAGE[8] = {0x2B, 0x40, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00};
+byte SHUTDOWN[8] = {0x2B, 0x40, 0x60, 0x00, 0x06, 0x00, 0x00, 0x00};
+byte FAULTRESET[8] = {0x2B, 0x40, 0x60, 0x00, 0x80, 0x00, 0x00, 0x00};
+byte ONANDENABLE[8] = {0x2B, 0x40, 0x60, 0x00, 0x0F, 0x00, 0x00, 0x00};
 
 MCP_CAN CAN(SPI_CS_PIN);
 
@@ -111,20 +112,24 @@ void uSet(){
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[i][rad] = "); Serial.println(u[nodeNum - 1]);
+      Serial.print(" saturated. u[rad/s] = "); Serial.print(u[nodeNum - 1]);
+      Serial.print(" u[rpm] = "); Serial.print(u[nodeNum - 1] * RADSTORPM);
+      Serial.print(" set to[rpm]:   "); Serial.println(maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1];
+      u[nodeNum - 1] = maxVelocity[nodeNum - 1] * RADSTORPM / motorReduction[nodeNum - 1];
     }
     else if( u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] < - maxVelocity[nodeNum - 1]){
       // if control > -max veloc -> saturate output
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
       Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[i][rad] = "); Serial.println(u[nodeNum - 1]);
+      Serial.print(" saturated. u[rad/s] = "); Serial.print(u[nodeNum - 1]);
+      Serial.print(" u[rpm] = "); Serial.print(u[nodeNum - 1] * RADSTORPM);
+      Serial.print(" set to[rpm]:   "); Serial.println( - maxVelocity[nodeNum - 1] * RADSTORPM / motorReduction[nodeNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = - (maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1]);
+      u[nodeNum - 1] = - (maxVelocity[nodeNum - 1] * RADSTORPM / motorReduction[nodeNum - 1]);
     }
   }
     #endif // #ifndef FORGET_SATURATION
@@ -210,8 +215,8 @@ void readTPDO1(word CANID){
     long unsigned* auxPointer2 =  (long unsigned*) (buf + 4);
     posInQuadCounts = *auxPointer2;
     qdot[nodeNum - 1] = velInRpm / RADSTORPM;
-    posInRad = (float)posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1];
-    q[nodeNum - 1] = posInRad - qoffset[nodeNum - 1] + qinit[nodeNum - 1];
+    posInRad = (posInQuadCounts - encQdOffset[nodeNum - 1]) * QDTORAD / motorReduction[nodeNum - 1];
+    q[nodeNum - 1] = posInRad + qinit[nodeNum - 1];
 
     /*  DEBUGGING PURPOSES */
     #ifdef DEBUG_MODE
@@ -222,7 +227,7 @@ void readTPDO1(word CANID){
     // Serial.print("Postion[quadCounts](absolute) of node "); Serial.print(nodeNum);Serial.print(": ");
     // Serial.print(posInQuadCounts); Serial.println();
     // Serial.print("Offset[Rad] of node "); Serial.print(nodeNum);Serial.print(": ");
-    // Serial.print(qoffset[nodeNum - 1]); Serial.println();
+    // Serial.print(encQdOffset[nodeNum - 1]); Serial.println();
     // Serial.print("Position[Rad](absolute) of node "); Serial.print(nodeNum);Serial.print(": ");
     // Serial.print(posInRad); Serial.println();
     // Serial.print("Position[Rad](relative) of node "); Serial.print(nodeNum);Serial.print(": ");
@@ -350,16 +355,22 @@ void setup()
     initMatlab();
     #endif
     setupShieldJoystick(); // init joystick on the shield
-    toAllNodesSDO(FAULTRESET,0); //Clear all errors in all nodes
+
+    toAllNodesSDO(DISABLEVOLTAGE,0); // Send state machine to "Switch On Disable" 
+    toAllNodesSDO(FAULTRESET,0); // Clear all errors in all nodes (->"Switch On Disable")
     CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
-    setInitialVals();
     setupTPDOs();
-    setupVelocityMode();
-    toAllNodesSDO(SHUTDOWN,0); // Send Shutdown command to all nodes
-    toAllNodesSDO(ONANDENABLE,0); // Send Switch On & Enable operation command to all nodes
+
+    toAllNodesSDO(SHUTDOWN,0); // Send state machine to "Ready to Switch On"
+    toAllNodesSDO(ONANDENABLE,0); // Send state machine to "Operation Enable"
     CAN.sendMsgBuf(0x000,0,2,OPERATIONAL); printMsgCheck(); // NMT: set CanOpen to Operational
 
-    delay(10); //let al the SDOs be attended
+    setInitialVals();
+    setupVelocityMode();
+
+
+
+    delay(100); //let al the SDOs be attended
 
     initQPosition();// take the joints out of singular position
 
@@ -383,8 +394,10 @@ void loop()
       Serial.print("WARN: loop(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
     }
     tLastExec = millis();
+
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)
+
     // calculate control
     switch (ControlType){
       case JointControl :
@@ -408,8 +421,9 @@ void loop()
         trajectoryControl();
         break;
       default :
-        Serial.println("DEBUG: loop(): Type of control invalid or not specifed");
+        Serial.println("WARN: loop(): Type of control invalid or not specifed");
     }
+
     uSet(); // send control signal to nodes
 
     #ifdef TO_MATLAB

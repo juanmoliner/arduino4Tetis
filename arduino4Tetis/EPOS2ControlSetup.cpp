@@ -82,7 +82,7 @@ void initQPosition(){
 
 void setupTPDOs(){
     // Configures the EPOS to send the desired objects via PDO
-    byte RESTORE_DEF_PDO_COBID[8] = {0x23, 0x11, 0x10, 0x05, 0x64, 0x61, 0x6F, 0x6C};
+    byte RESTORE_DEF_PDO_COBID[8] = {0x23, 0x11, 0x10, 0x05, 0x6C, 0x6F, 0x61, 0x64};
     byte TPDO1_INHIBIT_TIME[8] = {0x2B, 0x00, 0x18, 0x03, lowByte(TPDO1_IN_TIME), highByte(TPDO1_IN_TIME), 0x00, 0x00};
     byte TPDO1_TRANSMTYPE[8] = {0x2F, 0x00, 0x18, 0x02, TPDO1_TR_TYPE, 0x00, 0x00, 0x00};
     byte TPDO1_NUM_0[8] = {0x2F,0x00, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -131,39 +131,102 @@ void setupVelocityMode(){
 }
 
 
-void setInitialVals(){
-  //sets initial values of position(incremental encoder)
-  byte READINCENCOD1[8] = {0x40, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00};
-  long unsigned posInQuadCounts;
-  long unsigned* auxPointer;
-  unsigned int numNodes = NUMBEROFNODES;
 
+void setInitialVals(){
+  unsigned char nodesRemaining = NUMBEROFNODES;
+  word CANID, nodeNum;
+  long unsigned* auxPointer;
+
+  /* TESTING PURPOSES */
   #ifdef TWO_MOTOR_TEST
-  numNodes = 2;
-  u[2] = u[3] = 0.0;
+  nodesRemaining = 2;
   #endif
   #ifdef SIMU_MODE
-  numNodes = 0;
-  u[0] = u[1] = u[2] = u[3] = 0.0;
+  nodesRemaining = 0;
   #endif
+  /* END OF TESTING PURPOSES */
 
-  for(word nodeNum = 1; nodeNum <= numNodes; nodeNum++){
-    CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET,0,8,READINCENCOD1);
-    delay(10);
-    do{
-      // keep printing everything in the buffer until Receiving SDO found
-      printMsgCheck();
-    }while(COBId != 0x580 + nodeNum + NODEID_OFFSET && buf[0] != 43);
-    auxPointer = (long unsigned*) (buf + 4);
-    posInQuadCounts = *auxPointer;
-    // /* DEBUGGING PURPOSES */
-    // #ifdef DEBUG_MODE
-    // Serial.print("Quadcounts iniciales del nodo "); Serial.print(nodeNum);
-    // Serial.print(" : "); Serial.println(posInQuadCounts);
-    // #endif
-    // /* END OF DEBUGGING PURPOSES */
-    qoffset[nodeNum - 1] = (float)posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1];
-    u[nodeNum - 1] = 0.0; // Set init control variable to 0 for safety
-  }
+  CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
+  while(nodesRemaining > 0){
+    // read buffer until all nodes have responded to the sync
+    CAN.readMsgBuf(&len, buf);
+    CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
+    if(CANID == 0x80){
+      #ifdef DEBUG_MODE
+      Serial.println("DEBUG: setInitialVals(): Sync object sucessfuly sent");
+      #endif
+    }
+    else if( CANID > 0x180 + NODEID_OFFSET && CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET){
+      // read TPDO1;
 
+      nodeNum = CANID - 0x180;
+      auxPointer =  (long unsigned*) (buf + 4);
+      encQdOffset[nodeNum - 1] = *auxPointer;
+
+      u[nodeNum - 1] = 0.0; // Set init control variable to 0 for safety
+
+      #ifdef DEBUG_MODE
+      Serial.print("DEBUG: setInitialVals(): Initial encoder counts[qd] node ");
+      Serial.print(nodeNum);
+      Serial.print(": encQdOffset = ");
+      Serial.println(encQdOffset[nodeNum - 1]);
+      #endif
+
+      nodesRemaining--;
+    }
+    else{
+      // other message found, we print it
+      #ifdef DEBUG_MODE
+      Serial.println("DEBUG: setInitialVals(): Message different from TPDO1 found:");
+      Serial.print("DEBUG: setInitialVals(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
+      for(int i = 0; i<len; i++){
+        Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
+      }
+      Serial.println();
+      #endif
+    }
+  } // while(nodesRemaining > 0)
 }
+
+
+
+// void setInitialVals(){
+//   //sets initial values of position(incremental encoder)
+//   byte READINCENCOD1[8] = {0x40, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00};
+//   long unsigned* auxPointer;
+//   unsigned int numNodes = NUMBEROFNODES;
+//
+//   #ifdef TWO_MOTOR_TEST
+//   numNodes = 2;
+//   u[2] = u[3] = 0.0;
+//   #endif
+//   #ifdef SIMU_MODE
+//   numNodes = 0;
+//   u[0] = u[1] = u[2] = u[3] = 0.0;
+//   #endif
+//
+//   for(word nodeNum = 1; nodeNum <= numNodes; nodeNum++){
+//     #ifdef DEBUG_MODE
+//     Serial.print("DEBUG: setInitialVals(): Setting encoder initial counts for node ");
+//     Serial.println(nodeNum);
+//     #endif
+//     CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET,0,8,READINCENCOD1);
+//     delay(10);
+//     do{
+//       // keep printing everything in the buffer until Receiving SDO found
+//       printMsgCheck();
+//     }while(COBId != 0x580 + nodeNum + NODEID_OFFSET && buf[0] != 0x43
+//            && buf[1] != 0x20 && buf[2] != 0x20 );
+//
+//     auxPointer = (long unsigned*) (buf + 4);
+//     encQdOffset[nodeNum - 1] = *auxPointer;
+//
+//     #ifdef DEBUG_MODE
+//     Serial.print("DEBUG: setInitialVals(): Initial counts[qd] set: ");
+//     Serial.println(encQdOffset[nodeNum - 1]);
+//     #endif
+//
+//     u[nodeNum - 1] = 0.0; // Set init control variable to 0 for safety
+//   }
+//
+// }

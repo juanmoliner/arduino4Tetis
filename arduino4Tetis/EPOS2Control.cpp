@@ -35,7 +35,6 @@ void proportionalFF(){
     Serial.print(" ui[rad/s] = ");Serial.print(u[i],DEBUG_PREC);
     Serial.print(" xdi[mm] = "); Serial.print(xd_h[i],DEBUG_PREC);
     Serial.print(" xi[mm] = ");Serial.println(x[i],DEBUG_PREC);
-
   }
   #endif
   /* END OF DEBUGGING PURPOSES */
