@@ -23,9 +23,9 @@
 #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
-#undef DEBUG_MODE // take off warning
-// #define DEBUG_MODE
-// #define DEBUG_PREC 3 // number of decimals to show in debug mode
+// #undef DEBUG_MODE // take off warning
+#define DEBUG_MODE
+#define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
 #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
@@ -70,6 +70,9 @@
 #define TPDO1_IN_TIME 1000 // inhibit time =  TPDO1_IN_TIME * 10exp(-6)s
 #define TPDO1_TR_TYPE 1 // 255: async, 253: async on RTR only, 1:sync
 
+/* ERROR CONTROL PROTOCOL SETTINGS */
+#define HEARBEAT_TIME 1000 // Hearbeat protocol producer time (multiple of 1ms)
+#define HB_DELAY_ALWD 200 // Allowed delay[ms] in hearbeat receptions
 
 /* GLOBAL VARIABLES */
 extern long unsigned h; // Sampling time(ms) for the control loops

@@ -4,7 +4,9 @@
 #include <mcp_can.h>
 #include <Arduino.h>
 
-void setupTPDOs();
+void setupPDOs();
+void setupTPDO1();
+void setupHearbeat();
 void setupVelocityMode();
 void setInitialVals();
 void initQPosition();

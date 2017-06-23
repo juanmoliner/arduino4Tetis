@@ -17,6 +17,8 @@ long unsigned h = SAMP_TIME; // Sampling time(ms) for the control loops
 long unsigned tLastExec; // time(ms)loop was last executed
 long unsigned tDelay; // delay from time iteration was supposed to start
 
+long unsigned lastHeartbeat[NUMBEROFNODES]; // last time[ms] hearbeat message was received
+
 long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 
 float r_h[NUMBEROFNODES]; // position read at joystick at h
@@ -221,25 +223,6 @@ void readTPDO1(word CANID){
     qdot[nodeNum - 1] = velInRpm * RPMTORADS;
     posInRad = (posInQuadCounts - encQdOffset[nodeNum - 1]) * QDTORAD / motorReduction[nodeNum - 1];
     q[nodeNum - 1] = posInRad + qinit[nodeNum - 1];
-
-    /*  DEBUGGING PURPOSES */
-    #ifdef DEBUG_MODE
-    // Serial.print("RPM of node "); Serial.print(nodeNum);Serial.print(": ");
-    // Serial.print(velInRpm,10); Serial.println();
-    // Serial.print("rad/s of node "); Serial.print(nodeNum);Serial.print(": ");
-    // Serial.print(qdot[nodeNum - 1],10); Serial.println();
-    // Serial.print("Postion[quadCounts](absolute) of node "); Serial.print(nodeNum);Serial.print(": ");
-    // Serial.print(posInQuadCounts); Serial.println();
-    // Serial.print("Offset[Rad] of node "); Serial.print(nodeNum);Serial.print(": ");
-    // Serial.print(encQdOffset[nodeNum - 1]); Serial.println();
-    // Serial.print("Position[Rad](absolute) of node "); Serial.print(nodeNum);Serial.print(": ");
-    // Serial.print(posInRad); Serial.println();
-    // Serial.print("Position[Rad](relative) of node "); Serial.print(nodeNum);Serial.print(": ");
-    // Serial.print(q[nodeNum - 1]); Serial.println();
-    // Serial.print("Control variable u[Rad] of node "); Serial.print(nodeNum); Serial.print(": ");
-    // Serial.print(u[nodeNum - 1]); Serial.println();
-    #endif
-    /*  END OF DEBUGGING PURPOSES */
 }
 
 void CANListener(){
@@ -269,24 +252,31 @@ void CANListener(){
     CAN.readMsgBuf(&len, buf);
     CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
     if(CANID == 0x80){
+      // Sync object received (we just sent it)
       #ifdef DEBUG_MODE
       Serial.println("DEBUG: CANListener(): Sync object sucessfuly sent");
       #endif
     }
-    else if( CANID > 0x180 + NODEID_OFFSET && CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET){
+    else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET)){
+      // PDO1 received from some node
       nodesRemaining--;
       readTPDO1(CANID);
     }
+    else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBEROFNODES + NODEID_OFFSET) && (buf[0] == 0x60)){
+      // SDO receiving message arrived, confirmation of SDO write object succesfuly received by its intended node
+      }
+    else if ((CANID > 0x700 + NODEID_OFFSET) && (CANID <= 0x700 + NUMBEROFNODES + NODEID_OFFSET)){
+      // Hearbeat message received from some node
+      lastHeartbeat[(CANID - 0x700) - 1] = millis();
+    }
     else{
       // other message found, we print it
-      #ifdef DEBUG_MODE
-      Serial.println("DEBUG: CANListener(): Message different from TPDO1 found:");
-      Serial.print("DEBUG: CANListener(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
+      Serial.println("WARN: CANListener(): Unexpected message found :");
+      Serial.print("WARN: CANListener(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
       for(int i = 0; i<len; i++){
         Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
       }
       Serial.println();
-      #endif
     }
   }
 }
@@ -340,6 +330,31 @@ void initMatlab(){
   Serial.println("--BEGIN OF MATLAB TRANSMISSION--");
 }
 
+
+void checkHearbeat(){
+  // checks if hearbeat time has elapsed for any node and, if so, raises an error
+  unsigned int numNodes = NUMBEROFNODES;
+
+  /* TESTING PURPOSES*/
+  #ifdef TWO_MOTOR_TEST
+  numNodes = 2;
+  #endif
+  #ifdef SIMU_MODE
+  numNodes = 0;
+  #endif
+  /* END OF TESTING PURPOSES*/
+
+  for(int i = 0; i < numNodes; i++){
+    if(lastHeartbeat[i] - millis() > HEARBEAT_TIME + HB_DELAY_ALWD){
+      // a node has not sent hb message last cycle
+      Serial.print("WARN: checkHearbeat(): Node "); Serial.print(i + 1);
+      Serial.print(" has not responden in last "); Serial.print(lastHeartbeat[i] - millis() - HEARBEAT_TIME);
+      Serial.println(" ms");
+    }
+    else Serial.println("PUTOAMO: Hearbeat funcionando de puta madre");
+  }
+}
+
 void setup()
 {
     Serial.begin(USB_BAUDRATE); // init serial comunication (USB->Arduino)
@@ -363,21 +378,15 @@ void setup()
     toAllNodesSDO(DISABLEVOLTAGE,0); // Send state machine to "Switch On Disable"
     toAllNodesSDO(FAULTRESET,0); // Clear all errors in all nodes (->"Switch On Disable")
     CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
-    setupTPDOs();
+
+    setupPDOs();
+    setupVelocityMode();
+    setInitialVals();
+    setupHearbeat();
 
     toAllNodesSDO(SHUTDOWN,0); // Send state machine to "Ready to Switch On"
     toAllNodesSDO(ONANDENABLE,0); // Send state machine to "Operation Enable"
     CAN.sendMsgBuf(0x000,0,2,OPERATIONAL); printMsgCheck(); // NMT: set CanOpen to Operational
-
-
-    setupVelocityMode();
-
-    setInitialVals();
-    delay(3000);
-    setInitialVals();
-
-
-
 
     delay(100); //let al the SDOs be attended
 
@@ -403,6 +412,8 @@ void loop()
       Serial.print("WARN: loop(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
     }
     tLastExec = millis();
+
+    checkHearbeat();
 
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)

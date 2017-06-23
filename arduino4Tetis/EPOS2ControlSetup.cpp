@@ -84,19 +84,57 @@ void initQPosition(){
   #endif
 }
 
-void setupTPDOs(){
-    // Configures the EPOS to send the desired objects via PDO
+void setupHearbeat(){
+  // configures CAN Hearbeat Protocol
+  byte PROD_HB_TIME[8] = {0x22, 0x17, 0x10, 0x00, lowByte(HEARBEAT_TIME),highByte(HEARBEAT_TIME), 0x00, 0x00};
+
+  #ifdef DEBUG_MODE
+  Serial.println("DEBUG: setupHearbeat(): Setting up hearbeat protocol");
+  #endif
+
+  toAllNodesSDO(PROD_HB_TIME,0);
+}
+
+
+
+
+
+void setupPDOs(){
+  // Configures EPOS for TPDO & RPDO transmission
+  byte TPDO1_NUM_0[8] = {0x2F, 0x00, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte TPDO2_NUM_0[8] = {0x2F, 0x01, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte TPDO3_NUM_0[8] = {0x2F, 0x02, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte TPDO4_NUM_0[8] = {0x2F, 0x03, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  byte RPDO1_NUM_0[8] = {0x2F, 0x00, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte RPDO2_NUM_0[8] = {0x2F, 0x01, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte RPDO3_NUM_0[8] = {0x2F, 0x02, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00};
+  byte RPDO4_NUM_0[8] = {0x2F, 0x03, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  // Disable all PDOs in all nodes by writting zero  to number of objects mapped
+  toAllNodesSDO(TPDO1_NUM_0,0);
+  toAllNodesSDO(TPDO2_NUM_0,0);
+  toAllNodesSDO(TPDO3_NUM_0,0);
+  toAllNodesSDO(TPDO4_NUM_0,0);
+
+  toAllNodesSDO(RPDO1_NUM_0,0);
+  toAllNodesSDO(RPDO2_NUM_0,0);
+  toAllNodesSDO(RPDO3_NUM_0,0);
+  toAllNodesSDO(RPDO4_NUM_0,0);
+
+  setupTPDO1();
+
+}
+
+void setupTPDO1(){
+    // Setup for PDO1 sending Velocity Actual and Position Actual Objects
     byte RESTORE_DEF_PDO_COBID[8] = {0x23, 0x11, 0x10, 0x05, 0x6C, 0x6F, 0x61, 0x64};
     byte TPDO1_INHIBIT_TIME[8] = {0x2B, 0x00, 0x18, 0x03, lowByte(TPDO1_IN_TIME), highByte(TPDO1_IN_TIME), 0x00, 0x00};
     byte TPDO1_TRANSMTYPE[8] = {0x2F, 0x00, 0x18, 0x02, TPDO1_TR_TYPE, 0x00, 0x00, 0x00};
     byte TPDO1_NUM_0[8] = {0x2F,0x00, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
-    // byte TPDO1_NUM_1[8] = {0x2F,0x00, 0x1A, 0x00, 0x01, 0x00, 0x00, 0x00};
     byte TPDO1_NUM_2[8] = {0x2F,0x00, 0x1A, 0x00, 0x02, 0x00, 0x00, 0x00};
-    // byte TPDO1_1MPO_STATUSWORD[8] = {0x23, 0x00, 0x1A, 0x01, 0x10, 0x00, 0x41, 0x60};
     byte TPDO1_1MPO_VELOCITYACTUAL[8] = {0x23, 0x00, 0x1A, 0x01, 0x20, 0x00, 0x6C, 0x60};
     byte TPDO1_2MPO_POSITIONACTUAL[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x64, 0x60};
-    // byte TPDO1_2MPO_INC_ENCOD1_COUNT[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x20, 0x20};
-    // byte TPDO1_2MPO_VELOCITYACTUAL[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x6C, 0x60};
 
     #ifdef DEBUG_MODE
     Serial.println("DEBUG: setupTPDOs(): Setting up TPOS");
@@ -111,11 +149,12 @@ void setupTPDOs(){
     // Set number of mapped objects to 0 to be able to change mapping
     toAllNodesSDO(TPDO1_NUM_0,0);
     // set mapped objects and number of mapped objects
-    // toAllNodesSDO(TPDO1_1MPO_STATUSWORD,0);
     toAllNodesSDO(TPDO1_1MPO_VELOCITYACTUAL,0);
     toAllNodesSDO(TPDO1_2MPO_POSITIONACTUAL,0);
     toAllNodesSDO(TPDO1_NUM_2,0);
 }
+
+
 
 void setupVelocityMode(){
   byte MAX_PROFVELOC[8] = {0x23, 0x7F, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -139,7 +178,6 @@ void setupVelocityMode(){
     MAX_PROFVELOC[i + 4] = maxProfVelocBytes[i];
     MAX_ACC[i + 4] = maxAcceleratBytes[i];
   }
-
 
   toAllNodesSDO(MODE_VELOCITY,0);
   toAllNodesSDO(MAX_PROFVELOC,0);
