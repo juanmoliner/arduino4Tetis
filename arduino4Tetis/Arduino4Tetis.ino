@@ -36,6 +36,7 @@ float xd_h_1[NUMBEROFNODES]; // desired position of the actuator at h-1(space of
 float xddot_h[NUMBEROFNODES]; // UNUSED???desired velocity of the actuator at h(space of the joints)
 float xddot_h_1[NUMBEROFNODES]; // desired velocity of the actuator at h-1(space of the joints)
 
+
 float qd[NUMBEROFNODES]; // desired position[rad] for each joint (space of the joints)
 
 float x[NUMBEROFNODES]; // actual position of the actuator (space of the actuator)
@@ -48,8 +49,9 @@ float u[NUMBEROFNODES]; // control variable angular velocity [rad/s]
 float ubar[NUMBEROFNODES]; // auxiliary control variable angular velocity [rad/s]
 float error[NUMBEROFNODES]; // error  defined as: e = xd -x
 
-long  encQdOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
-float qinit[NUMBEROFNODES] = JOINTS_INIT_VALS;  // initial angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
+float q0[NUMBEROFNODES] = Q_INIT_POSITION; // initial pos[rad] joints in initial joint control (space of the joints)
+long  qEncOffset[NUMBEROFNODES]; // initial read [rad] of incremental encoder
+float qinit[NUMBEROFNODES] = JOINTS_INIT_VALS;  // initial(calibration) angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
 
 float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
 float J0[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the base (joint 0)
@@ -72,6 +74,8 @@ MCP_CAN CAN(SPI_CS_PIN);
 
 enum ControlType
 {
+  Setup,
+  InitialPosition,
   JointControl,
   Joystick,
   Trajectory
@@ -344,7 +348,7 @@ void checkHearbeat(){
   #endif
   /* END OF TESTING PURPOSES*/
 
-  for(int i = 0; i < numNodes; i++){
+  for(unsigned int i = 0; i < numNodes; i++){
     if(lastHeartbeat[i] - millis() > HEARBEAT_TIME + HB_DELAY_ALWD){
       // a node has not sent hb message last cycle
       Serial.print("WARN: checkHearbeat(): Node "); Serial.print(i + 1);
@@ -353,6 +357,10 @@ void checkHearbeat(){
     }
     else Serial.println("PUTOAMO: Hearbeat funcionando de puta madre");
   }
+}
+
+void updateControlType(){
+  // updates the control type to the one desired by
 }
 
 void setup()
@@ -392,7 +400,9 @@ void setup()
 
     initQPosition();// take the joints out of singular position
 
-    ControlType = Trajectory;
+    ControlType = Initial;
+
+    // ControlType = Trajectory;
     // initXPosition(); // take actuator to an initial postition
     // delay(1000);
     // ControlType = JointControl;
@@ -418,8 +428,24 @@ void loop()
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)
 
+    updateControlType();
+
     // calculate control
     switch (ControlType){
+      case Setup:
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: loop(): entering setup");
+        #endif
+        for(int i = 0; i < NUMBEROFNODES; i++ ){
+          qEncOffset[i] = q[i];
+        }
+        break;
+      case InitialPosition:
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: loop(): entering initial joint control");
+        #endif
+        initQPosition()
+        break;
       case JointControl :
         #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering joint pos control");

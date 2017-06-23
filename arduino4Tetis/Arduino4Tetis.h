@@ -105,7 +105,7 @@ extern float u[NUMBEROFNODES]; // control variable angular velocity [rad/s]
 extern float ubar[NUMBEROFNODES]; // auxiliary control variable angular velocity [rad/s]
 extern float error[NUMBEROFNODES]; // error  defined as: e = xd -x
 
-extern long  encQdOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
+extern long  qEncOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
 extern float qinit[NUMBEROFNODES];  // initial angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
 
 extern float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables

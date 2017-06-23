@@ -41,6 +41,36 @@ void initXPosition(){
 
 
 void initQPosition(){
+  // initial position control in space of the joints to take them out of calibration position
+
+  float maxError = 0; // max error out of all joints
+  for(int i = 0; i < NUMBEROFNODES; i++){
+    qd[i] = q0[i];
+  }
+  jointPosControl();
+
+  for(int i = 0; i < NUMBEROFNODES; i++){
+    if(abs(error[i]) > maxError) maxError = abs(error[i]);
+  }
+  #ifdef DEBUG_MODE
+  Serial.print("DEBUG: initQPosition(): Max error[deg]: "); Serial.print(maxError * RADTODEG,4);
+  Serial.print(" Max error allowed[deg] : "); Serial.println(INIT_Q_MAX_ERROR,4);
+  #endif
+
+  if(maxError * RADTODEG < INIT_Q_MAX_ERROR){
+    // initial control was fulfilled
+    initialControl == true;
+    #ifdef DEBUG_MODE
+    Serial.println("DEBUG: initQPosition(): Exitting");
+    #endif
+  }
+
+}
+
+
+
+
+void initQPosition(){
   // Initial Joint control to take them out of singular position
   float q0[NUMBEROFNODES] = Q_INIT_POSITION;
   float maxError; // max error out of all joints
@@ -137,7 +167,7 @@ void setupTPDO1(){
     byte TPDO1_2MPO_POSITIONACTUAL[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x64, 0x60};
 
     #ifdef DEBUG_MODE
-    Serial.println("DEBUG: setupTPDOs(): Setting up TPOS");
+    Serial.println("DEBUG: setupTPDOs(): Setting up TPDO1");
     #endif
 
     // recalculate al COB-ID of the PDO's based on their DIP-Switch
