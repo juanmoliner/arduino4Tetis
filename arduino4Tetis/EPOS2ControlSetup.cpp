@@ -48,6 +48,10 @@ void initQPosition(){
     qd[i] = q0[i];
   }
 
+  #ifdef DEBUG_MODE
+  Serial.println("DEBUG: initQPosition(): Starting initial joint control");
+  #endif
+
   do{
     if((millis() - tLastExec >= h)){
       tDelay = millis() - tLastExec - h;
@@ -90,8 +94,13 @@ void setupTPDOs(){
     byte TPDO1_NUM_2[8] = {0x2F,0x00, 0x1A, 0x00, 0x02, 0x00, 0x00, 0x00};
     // byte TPDO1_1MPO_STATUSWORD[8] = {0x23, 0x00, 0x1A, 0x01, 0x10, 0x00, 0x41, 0x60};
     byte TPDO1_1MPO_VELOCITYACTUAL[8] = {0x23, 0x00, 0x1A, 0x01, 0x20, 0x00, 0x6C, 0x60};
-    byte TPDO1_2MPO_INC_ENCOD1_COUNT[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x20, 0x20};
+    byte TPDO1_2MPO_POSITIONACTUAL[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x64, 0x60};
+    // byte TPDO1_2MPO_INC_ENCOD1_COUNT[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x20, 0x20};
     // byte TPDO1_2MPO_VELOCITYACTUAL[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x6C, 0x60};
+
+    #ifdef DEBUG_MODE
+    Serial.println("DEBUG: setupTPDOs(): Setting up TPOS");
+    #endif
 
     // recalculate al COB-ID of the PDO's based on their DIP-Switch
     toAllNodesSDO(RESTORE_DEF_PDO_COBID,0);
@@ -104,7 +113,7 @@ void setupTPDOs(){
     // set mapped objects and number of mapped objects
     // toAllNodesSDO(TPDO1_1MPO_STATUSWORD,0);
     toAllNodesSDO(TPDO1_1MPO_VELOCITYACTUAL,0);
-    toAllNodesSDO(TPDO1_2MPO_INC_ENCOD1_COUNT,0);
+    toAllNodesSDO(TPDO1_2MPO_POSITIONACTUAL,0);
     toAllNodesSDO(TPDO1_NUM_2,0);
 }
 
@@ -114,15 +123,23 @@ void setupVelocityMode(){
   byte MODE_VELOCITY[8] = {0x2F, 0x60, 0x60, 0x00, 0xFE, 0x00, 0x00, 0x00};
   byte ZERO_INITIAL_VELOCITY[8] = {0x23, 0x6B, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-  unsigned long maxProfVelocity = 6250;
-  unsigned long maxAcceleration = 6250;
+  unsigned long maxProfVelocity[NUMBEROFNODES] = MAX_VELOCITY;
+  unsigned long maxAcceleration[NUMBEROFNODES] = MAX_ACCELERATION;
+  byte* maxProfVelocBytes;
+  byte* maxAcceleratBytes;
+
+  #ifdef DEBUG_MODE
+  Serial.println("DEBUG: setupVelocityMode(): Setting up velocity mode");
+  #endif
+
   // to be able to acces value byte by byte
-  byte* maxProfVelocBytes = (byte*) &maxProfVelocity;
-  byte* maxAcceleratBytes = (byte*) &maxAcceleration;
   for(int i = 0; i < 4; i++){
+    maxProfVelocBytes = (byte*) (maxProfVelocity + i);
+    maxAcceleratBytes = (byte*) (maxAcceleration + i);
     MAX_PROFVELOC[i + 4] = maxProfVelocBytes[i];
     MAX_ACC[i + 4] = maxAcceleratBytes[i];
-    }
+  }
+
 
   toAllNodesSDO(MODE_VELOCITY,0);
   toAllNodesSDO(MAX_PROFVELOC,0);
@@ -135,7 +152,7 @@ void setupVelocityMode(){
 void setInitialVals(){
   unsigned char nodesRemaining = NUMBEROFNODES;
   word CANID, nodeNum;
-  long unsigned* auxPointer;
+  long* auxPointer;
 
   /* TESTING PURPOSES */
   #ifdef TWO_MOTOR_TEST
@@ -145,6 +162,10 @@ void setInitialVals(){
   nodesRemaining = 0;
   #endif
   /* END OF TESTING PURPOSES */
+
+  #ifdef DEBUG_MODE
+  Serial.println("DEBUG: setInitialVals(): Setting initial values");
+  #endif
 
   CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
   while(nodesRemaining > 0){
@@ -160,7 +181,7 @@ void setInitialVals(){
       // read TPDO1;
 
       nodeNum = CANID - 0x180;
-      auxPointer =  (long unsigned*) (buf + 4);
+      auxPointer =  (long*) (buf + 4); //access 4 last bytes of TPDO data
       encQdOffset[nodeNum - 1] = *auxPointer;
 
       u[nodeNum - 1] = 0.0; // Set init control variable to 0 for safety

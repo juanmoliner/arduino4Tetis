@@ -46,7 +46,7 @@ float u[NUMBEROFNODES]; // control variable angular velocity [rad/s]
 float ubar[NUMBEROFNODES]; // auxiliary control variable angular velocity [rad/s]
 float error[NUMBEROFNODES]; // error  defined as: e = xd -x
 
-long unsigned encQdOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
+long  encQdOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
 float qinit[NUMBEROFNODES] = JOINTS_INIT_VALS;  // initial angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
 
 float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
@@ -209,12 +209,16 @@ void readTPDO1(word CANID){
   // reads TPDO1 and saves it to q and qdot
     word nodeNum = CANID - 0x180;
     float velInRpm, posInRad;
-    long unsigned posInQuadCounts;
-    long* auxPointer1 =  (long*) buf;
-    velInRpm = (float)(*auxPointer1) / motorReduction[nodeNum - 1];
-    long unsigned* auxPointer2 =  (long unsigned*) (buf + 4);
-    posInQuadCounts = *auxPointer2;
-    qdot[nodeNum - 1] = velInRpm / RADSTORPM;
+    long posInQuadCounts;
+    long* auxPointer ;
+
+    auxPointer = (long*) buf; //access first 4 bytes of TPDO data
+    velInRpm = (float)(*auxPointer) / motorReduction[nodeNum - 1];
+
+    auxPointer =  (long*) (buf + 4); //access last 4 bytes of TPDO data
+    posInQuadCounts = *auxPointer;
+
+    qdot[nodeNum - 1] = velInRpm * RPMTORADS;
     posInRad = (posInQuadCounts - encQdOffset[nodeNum - 1]) * QDTORAD / motorReduction[nodeNum - 1];
     q[nodeNum - 1] = posInRad + qinit[nodeNum - 1];
 
@@ -356,7 +360,7 @@ void setup()
     #endif
     setupShieldJoystick(); // init joystick on the shield
 
-    toAllNodesSDO(DISABLEVOLTAGE,0); // Send state machine to "Switch On Disable" 
+    toAllNodesSDO(DISABLEVOLTAGE,0); // Send state machine to "Switch On Disable"
     toAllNodesSDO(FAULTRESET,0); // Clear all errors in all nodes (->"Switch On Disable")
     CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
     setupTPDOs();
@@ -365,8 +369,13 @@ void setup()
     toAllNodesSDO(ONANDENABLE,0); // Send state machine to "Operation Enable"
     CAN.sendMsgBuf(0x000,0,2,OPERATIONAL); printMsgCheck(); // NMT: set CanOpen to Operational
 
-    setInitialVals();
+
     setupVelocityMode();
+
+    setInitialVals();
+    delay(3000);
+    setInitialVals();
+
 
 
 
