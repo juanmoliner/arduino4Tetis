@@ -16,16 +16,16 @@
 /* MATLAB PLOTTING MODE*/
 #define TO_MATLAB // if defined sends data to be plotted to Matlab
 #define MATLAB_PREC 4 // number of decimals to send to Matlab
-#define MATLAB_PLOT_SAMPLE_T 30 //Matlab plotting sample time(ms)
+#define MATLAB_PLOT_SAMPLE_T 10 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
 // #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
 #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
-// #undef DEBUG_MODE // take off warning
-#define DEBUG_MODE
-#define DEBUG_PREC 3 // number of decimals to show in debug mode
+#undef DEBUG_MODE // take off warning
+// #define DEBUG_MODE
+// #define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
 #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
@@ -37,7 +37,7 @@
 #define KP {1.0, 1.0, 1.0, 1.0} // actuator control proportional gain
 #define INIT_Q_MAX_ERROR 0.3 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
-#define Q_INIT_POSITION {0.0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
+#define Q_INIT_POSITION {-PI/4, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
 
 /* ACTUATOR SYSTEM CONFIG */
@@ -47,7 +47,7 @@
 #define ENCODER_CPR 500// incremental enconder counts per revolution
 #define MAX_VELOCITY {6200, 6300, 6250, 6250} // velocity limit move [rpm @ motor]
 #define MAX_ACCELERATION {600, 750, 650, 650} // max acceleration [rpm/s @ motor]
-#define JOINTS_INIT_VALS {0, -PI/2, 0, 0}
+#define JOINTS_INIT_VALS {0.0, -PI/2, 0.0, 0.0}
 #define J_LIMIT_OVP_ALLWD 0.1 / RADTODEG // allowed overpass of joint limit [rad]
 
 
@@ -79,7 +79,11 @@ extern long unsigned h; // Sampling time(ms) for the control loops
 extern long unsigned tLastExec; // time(ms)loop was last executed
 extern long unsigned tDelay; // delay from time iteration was supposed to start
 
+extern long unsigned lastHeartbeat[NUMBEROFNODES]; // last time[ms] hearbeat message was received
+
 extern long unsigned tLastPlot; // time(ms) last plot in Matlab
+
+extern bool initialControl; // wether inital position control has already been made
 
 extern float r_h[NUMBEROFNODES]; // position read at joystick at h
 extern float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1

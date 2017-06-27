@@ -19,6 +19,8 @@ long unsigned tDelay; // delay from time iteration was supposed to start
 
 long unsigned lastHeartbeat[NUMBEROFNODES]; // last time[ms] hearbeat message was received
 
+bool initialControl = false; // wether inital position control has already been made
+
 long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 
 float r_h[NUMBEROFNODES]; // position read at joystick at h
@@ -52,6 +54,8 @@ float error[NUMBEROFNODES]; // error  defined as: e = xd -x
 float q0[NUMBEROFNODES] = Q_INIT_POSITION; // initial pos[rad] joints in initial joint control (space of the joints)
 long  qEncOffset[NUMBEROFNODES]; // initial read [rad] of incremental encoder
 float qinit[NUMBEROFNODES] = JOINTS_INIT_VALS;  // initial(calibration) angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
+
+float qoffset[NUMBEROFNODES];
 
 float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
 float J0[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the base (joint 0)
@@ -99,8 +103,8 @@ void uSet(){
   #endif
   /* END OF TESTING PURPOSES*/
 
+  // check inminent collision & joint limits
   #ifndef FORGET_JLMITS_COLIS
-  // Check inminent collision & joint limits
   if(tetisCheckColision() || tetisCheckJointLimits()){
     // danger: set control to zero
     for(int i = 0; i < NUMBEROFNODES; i++){
@@ -108,7 +112,6 @@ void uSet(){
     }
   }
   #endif
-
 
   // check saturation
   #ifndef FORGET_SATURATION
@@ -148,7 +151,7 @@ void uSet(){
       SETRPM[i + 4] = rpmBytes[i];
     }
     CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET,0,8,SETRPM);
-    printMsgCheck();
+    // printMsgCheck();
   }
 }
 
@@ -225,8 +228,9 @@ void readTPDO1(word CANID){
     posInQuadCounts = *auxPointer;
 
     qdot[nodeNum - 1] = velInRpm * RPMTORADS;
-    posInRad = (posInQuadCounts - encQdOffset[nodeNum - 1]) * QDTORAD / motorReduction[nodeNum - 1];
-    q[nodeNum - 1] = posInRad + qinit[nodeNum - 1];
+    // posInRad = posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1];
+    // q[nodeNum - 1] = posInRad + qinit[nodeNum - 1] - qEncOffset[nodeNum - 1];
+    q[nodeNum - 1] = (posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1]) - qoffset[nodeNum - 1];
 }
 
 void CANListener(){
@@ -288,6 +292,7 @@ void CANListener(){
 void plotXInMatlab(){
   static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
+    //actually not necessary since only used inside timed main loop
     Serial.print("ToMatlabX: ");
     for(int i = 0; i < NUMBEROFNODES; i++){
       Serial.print(xd_h[i], MATLAB_PREC); Serial.print(" ");
@@ -304,6 +309,7 @@ void plotXInMatlab(){
 void plotQInMatlab(){
   static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
+    //actually not necessary since only used inside timed main loop
     Serial.print("ToMatlabQ: ");
     for(int i = 0; i < NUMBEROFNODES; i++){
       Serial.print(qd[i] * RADTODEG, MATLAB_PREC); Serial.print(" ");
@@ -320,6 +326,7 @@ void plotQInMatlab(){
 void plotUInMatlab(){
   static long unsigned tLastPlot;
   if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
+    //actually not necessary since only used inside timed main loop
     Serial.print("ToMatlabU: ");
     for(int i = 0; i < NUMBEROFNODES; i++){
       Serial.print(u[i] * RADTODEG,MATLAB_PREC); Serial.print(" ");
@@ -329,6 +336,7 @@ void plotUInMatlab(){
     tLastPlot = millis();
   }
 }
+
 void initMatlab(){
   // Sends command to beging Matlab data aquisition
   Serial.println("--BEGIN OF MATLAB TRANSMISSION--");
@@ -349,18 +357,27 @@ void checkHearbeat(){
   /* END OF TESTING PURPOSES*/
 
   for(unsigned int i = 0; i < numNodes; i++){
-    if(lastHeartbeat[i] - millis() > HEARBEAT_TIME + HB_DELAY_ALWD){
+    if(millis() - lastHeartbeat[i] > HEARBEAT_TIME + HB_DELAY_ALWD){
       // a node has not sent hb message last cycle
       Serial.print("WARN: checkHearbeat(): Node "); Serial.print(i + 1);
-      Serial.print(" has not responden in last "); Serial.print(lastHeartbeat[i] - millis() - HEARBEAT_TIME);
+      Serial.print(" has not responded in last "); Serial.print(millis() - lastHeartbeat[i] - HEARBEAT_TIME);
       Serial.println(" ms");
     }
-    else Serial.println("PUTOAMO: Hearbeat funcionando de puta madre");
+    #ifdef DEBUG_MODE
+    else{
+      Serial.print("DEBUG: checkHearbeat(): Node "); Serial.print(i + 1);
+      Serial.println(" responding");
+    }
+    #endif
   }
 }
 
 void updateControlType(){
-  // updates the control type to the one desired by
+  // updates the control type to the one desired by user
+  if(initialControl){
+    // check user desired mode
+    ControlType = Trajectory;
+  }
 }
 
 void setup()
@@ -389,27 +406,16 @@ void setup()
 
     setupPDOs();
     setupVelocityMode();
-    setInitialVals();
+    // setInitialVals();
     setupHearbeat();
 
     toAllNodesSDO(SHUTDOWN,0); // Send state machine to "Ready to Switch On"
     toAllNodesSDO(ONANDENABLE,0); // Send state machine to "Operation Enable"
     CAN.sendMsgBuf(0x000,0,2,OPERATIONAL); printMsgCheck(); // NMT: set CanOpen to Operational
 
-    delay(100); //let al the SDOs be attended
+    delay(500); //let al the SDOs be attended
 
-    initQPosition();// take the joints out of singular position
-
-    ControlType = Initial;
-
-    // ControlType = Trajectory;
-    // initXPosition(); // take actuator to an initial postition
-    // delay(1000);
-    // ControlType = JointControl;
-    // for(int i = 0; i < NUMBEROFNODES; i++){
-    //   qd[i] = PI;
-    // }
-
+    ControlType = Setup;
 }
 
 
@@ -423,7 +429,7 @@ void loop()
     }
     tLastExec = millis();
 
-    checkHearbeat();
+    // checkHearbeat();
 
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)
@@ -437,14 +443,19 @@ void loop()
         Serial.println("DEBUG: loop(): entering setup");
         #endif
         for(int i = 0; i < NUMBEROFNODES; i++ ){
-          qEncOffset[i] = q[i];
+          qoffset[i] = q[i] - qinit[i];
+          // #ifdef DEBUG_MODE
+          Serial.print("DEBUG: loop(): qoffset = ");
+          Serial.println(qoffset[i] * RADTODEG);
+          // #endif
         }
+        ControlType =  InitialPosition;
         break;
       case InitialPosition:
         #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering initial joint control");
         #endif
-        initQPosition()
+        initQPosition();
         break;
       case JointControl :
         #ifdef DEBUG_MODE

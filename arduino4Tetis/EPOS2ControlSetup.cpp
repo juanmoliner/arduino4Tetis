@@ -41,9 +41,11 @@ void initXPosition(){
 
 
 void initQPosition(){
-  // initial position control in space of the joints to take them out of calibration position
-
+  // initial position control in space of the joints to take them out
+  // of calibration position
+  float q0[NUMBEROFNODES] = Q_INIT_POSITION;
   float maxError = 0; // max error out of all joints
+
   for(int i = 0; i < NUMBEROFNODES; i++){
     qd[i] = q0[i];
   }
@@ -59,70 +61,87 @@ void initQPosition(){
 
   if(maxError * RADTODEG < INIT_Q_MAX_ERROR){
     // initial control was fulfilled
-    initialControl == true;
+    initialControl = true;
     #ifdef DEBUG_MODE
     Serial.println("DEBUG: initQPosition(): Exitting");
     #endif
-  }
-
-}
-
-
-
-
-void initQPosition(){
-  // Initial Joint control to take them out of singular position
-  float q0[NUMBEROFNODES] = Q_INIT_POSITION;
-  float maxError; // max error out of all joints
-  for(int i = 0; i < NUMBEROFNODES; i++){
-    qd[i] = q0[i];
-  }
-
-  #ifdef DEBUG_MODE
-  Serial.println("DEBUG: initQPosition(): Starting initial joint control");
-  #endif
-
-  do{
-    if((millis() - tLastExec >= h)){
-      tDelay = millis() - tLastExec - h;
-      if(tDelay > PERMT_DELAY && tLastExec != 0){
-        Serial.print("WARN: initQPosition(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
-      }
-      tLastExec = millis();
-      maxError = 0; // resets the maximum error
-      CANListener(); // get data from EPOS nodes in CAN bus
-      jointPosControl();
-      uSet();
-      plotQInMatlab();
-      plotUInMatlab();
-      for(int i = 0; i < NUMBEROFNODES; i++){
-        if(abs(error[i]) > maxError) maxError = abs(error[i]);
-      }
-      #ifdef DEBUG_MODE
-      Serial.print("DEBUG: initQPosition(): Max error[deg]: "); Serial.print(maxError * RADTODEG,4);
-      Serial.print(" Max error allowed[deg] : "); Serial.println(INIT_Q_MAX_ERROR,4);
-      #endif
+    for(int i = 0; i < NUMBEROFNODES; i++){
+      u[i] = 0.0; // zero control for safety
     }
-  }while(maxError * RADTODEG > INIT_Q_MAX_ERROR);
-  // leave joints in that position -> zero control
-  for(int i = 0; i < NUMBEROFNODES; i++){
-    u[i] = 0;
   }
-  uSet();
-  #ifdef DEBUG_MODE
-  Serial.println("DEBUG: initQPosition(): Exitting");
-  #endif
 }
+
+
+//
+//
+// void initQPosition(){
+//   // Initial Joint control to take them out of singular position
+//   float q0[NUMBEROFNODES] = Q_INIT_POSITION;
+//   float maxError; // max error out of all joints
+//   for(int i = 0; i < NUMBEROFNODES; i++){
+//     qd[i] = q0[i];
+//   }
+//
+//   #ifdef DEBUG_MODE
+//   Serial.println("DEBUG: initQPosition(): Starting initial joint control");
+//   #endif
+//
+//   do{
+//     if((millis() - tLastExec >= h)){
+//       tDelay = millis() - tLastExec - h;
+//       if(tDelay > PERMT_DELAY && tLastExec != 0){
+//         Serial.print("WARN: initQPosition(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
+//       }
+//       tLastExec = millis();
+//       maxError = 0; // resets the maximum error
+//       CANListener(); // get data from EPOS nodes in CAN bus
+//       jointPosControl();
+//       uSet();
+//       plotQInMatlab();
+//       plotUInMatlab();
+//       for(int i = 0; i < NUMBEROFNODES; i++){
+//         if(abs(error[i]) > maxError) maxError = abs(error[i]);
+//       }
+//       #ifdef DEBUG_MODE
+//       Serial.print("DEBUG: initQPosition(): Max error[deg]: "); Serial.print(maxError * RADTODEG,4);
+//       Serial.print(" Max error allowed[deg] : "); Serial.println(INIT_Q_MAX_ERROR,4);
+//       #endif
+//     }
+//   }while(maxError * RADTODEG > INIT_Q_MAX_ERROR);
+//   // leave joints in that position -> zero control
+//   for(int i = 0; i < NUMBEROFNODES; i++){
+//     u[i] = 0;
+//   }
+//   uSet();
+//   #ifdef DEBUG_MODE
+//   Serial.println("DEBUG: initQPosition(): Exitting");
+//   #endif
+// }
 
 void setupHearbeat(){
   // configures CAN Hearbeat Protocol
   byte PROD_HB_TIME[8] = {0x22, 0x17, 0x10, 0x00, lowByte(HEARBEAT_TIME),highByte(HEARBEAT_TIME), 0x00, 0x00};
+  unsigned int numNodes = NUMBEROFNODES;
+
+  /* TESTING PURPOSES*/
+  #ifdef TWO_MOTOR_TEST
+  numNodes = 2;
+  #endif
+  #ifdef SIMU_MODE
+  numNodes = 0;
+  #endif
+  /* END OF TESTING PURPOSES*/
 
   #ifdef DEBUG_MODE
   Serial.println("DEBUG: setupHearbeat(): Setting up hearbeat protocol");
   #endif
 
   toAllNodesSDO(PROD_HB_TIME,0);
+
+  // initial time for hearbeat
+  for(unsigned int i = 0; i < numNodes; i++){
+    lastHeartbeat[i] = millis();
+  }
 }
 
 
@@ -217,65 +236,65 @@ void setupVelocityMode(){
 
 
 
-void setInitialVals(){
-  unsigned char nodesRemaining = NUMBEROFNODES;
-  word CANID, nodeNum;
-  long* auxPointer;
-
-  /* TESTING PURPOSES */
-  #ifdef TWO_MOTOR_TEST
-  nodesRemaining = 2;
-  #endif
-  #ifdef SIMU_MODE
-  nodesRemaining = 0;
-  #endif
-  /* END OF TESTING PURPOSES */
-
-  #ifdef DEBUG_MODE
-  Serial.println("DEBUG: setInitialVals(): Setting initial values");
-  #endif
-
-  CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-  while(nodesRemaining > 0){
-    // read buffer until all nodes have responded to the sync
-    CAN.readMsgBuf(&len, buf);
-    CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
-    if(CANID == 0x80){
-      #ifdef DEBUG_MODE
-      Serial.println("DEBUG: setInitialVals(): Sync object sucessfuly sent");
-      #endif
-    }
-    else if( CANID > 0x180 + NODEID_OFFSET && CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET){
-      // read TPDO1;
-
-      nodeNum = CANID - 0x180;
-      auxPointer =  (long*) (buf + 4); //access 4 last bytes of TPDO data
-      encQdOffset[nodeNum - 1] = *auxPointer;
-
-      u[nodeNum - 1] = 0.0; // Set init control variable to 0 for safety
-
-      #ifdef DEBUG_MODE
-      Serial.print("DEBUG: setInitialVals(): Initial encoder counts[qd] node ");
-      Serial.print(nodeNum);
-      Serial.print(": encQdOffset = ");
-      Serial.println(encQdOffset[nodeNum - 1]);
-      #endif
-
-      nodesRemaining--;
-    }
-    else{
-      // other message found, we print it
-      #ifdef DEBUG_MODE
-      Serial.println("DEBUG: setInitialVals(): Message different from TPDO1 found:");
-      Serial.print("DEBUG: setInitialVals(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
-      for(int i = 0; i<len; i++){
-        Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
-      }
-      Serial.println();
-      #endif
-    }
-  } // while(nodesRemaining > 0)
-}
+// void setInitialVals(){
+//   unsigned char nodesRemaining = NUMBEROFNODES;
+//   word CANID, nodeNum;
+//   long* auxPointer;
+//
+//   /* TESTING PURPOSES */
+//   #ifdef TWO_MOTOR_TEST
+//   nodesRemaining = 2;
+//   #endif
+//   #ifdef SIMU_MODE
+//   nodesRemaining = 0;
+//   #endif
+//   /* END OF TESTING PURPOSES */
+//
+//   #ifdef DEBUG_MODE
+//   Serial.println("DEBUG: setInitialVals(): Setting initial values");
+//   #endif
+//
+//   CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
+//   while(nodesRemaining > 0){
+//     // read buffer until all nodes have responded to the sync
+//     CAN.readMsgBuf(&len, buf);
+//     CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
+//     if(CANID == 0x80){
+//       #ifdef DEBUG_MODE
+//       Serial.println("DEBUG: setInitialVals(): Sync object sucessfuly sent");
+//       #endif
+//     }
+//     else if( CANID > 0x180 + NODEID_OFFSET && CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET){
+//       // read TPDO1;
+//
+//       nodeNum = CANID - 0x180;
+//       auxPointer =  (long*) (buf + 4); //access 4 last bytes of TPDO data
+//       encQdOffset[nodeNum - 1] = *auxPointer;
+//
+//       u[nodeNum - 1] = 0.0; // Set init control variable to 0 for safety
+//
+//       #ifdef DEBUG_MODE
+//       Serial.print("DEBUG: setInitialVals(): Initial encoder counts[qd] node ");
+//       Serial.print(nodeNum);
+//       Serial.print(": encQdOffset = ");
+//       Serial.println(encQdOffset[nodeNum - 1]);
+//       #endif
+//
+//       nodesRemaining--;
+//     }
+//     else{
+//       // other message found, we print it
+//       #ifdef DEBUG_MODE
+//       Serial.println("DEBUG: setInitialVals(): Message different from TPDO1 found:");
+//       Serial.print("DEBUG: setInitialVals(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
+//       for(int i = 0; i<len; i++){
+//         Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
+//       }
+//       Serial.println();
+//       #endif
+//     }
+//   } // while(nodesRemaining > 0)
+// }
 
 
 
