@@ -35,7 +35,7 @@ void toAllNodesSDO(byte* DATA, bool ext){
   #endif
   /* END OF TESTING PURPOSES*/
    for(word nodeNum = 1; nodeNum <= numNodes ; nodeNum++){
-     CAN.sendMsgBuf(0x600 + nodeNum, ext, 8, DATA);
+     CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET, ext, 8, DATA);
      do{
        // keep printing everything in the buffer until Receving SDO found
        printMsgCheck();

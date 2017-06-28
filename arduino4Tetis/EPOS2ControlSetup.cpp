@@ -160,6 +160,10 @@ void setupPDOs(){
   byte RPDO3_NUM_0[8] = {0x2F, 0x02, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00};
   byte RPDO4_NUM_0[8] = {0x2F, 0x03, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+  #ifdef DEBUG_MODE
+  Serial.println("DEBUG: setupPDOs(): Zeroing al PDOs");
+  #endif
+
   // Disable all PDOs in all nodes by writting zero  to number of objects mapped
   toAllNodesSDO(TPDO1_NUM_0,0);
   toAllNodesSDO(TPDO2_NUM_0,0);
@@ -186,7 +190,7 @@ void setupTPDO1(){
     byte TPDO1_2MPO_POSITIONACTUAL[8] = {0x23, 0x00, 0x1A, 0x02, 0x20, 0x00, 0x64, 0x60};
 
     #ifdef DEBUG_MODE
-    Serial.println("DEBUG: setupTPDOs(): Setting up TPDO1");
+    Serial.println("DEBUG: setupTPDO1(): Setting up TPDO1");
     #endif
 
     // recalculate al COB-ID of the PDO's based on their DIP-Switch
@@ -229,8 +233,8 @@ void setupVelocityMode(){
   }
 
   toAllNodesSDO(MODE_VELOCITY,0);
-  toAllNodesSDO(MAX_PROFVELOC,0);
-  toAllNodesSDO(MAX_ACC,0);
+  // toAllNodesSDO(MAX_PROFVELOC,0);
+  // toAllNodesSDO(MAX_ACC,0);
   toAllNodesSDO(ZERO_INITIAL_VELOCITY,0);
 }
 

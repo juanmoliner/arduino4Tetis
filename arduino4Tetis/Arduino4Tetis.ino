@@ -26,7 +26,7 @@ long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 float r_h[NUMBEROFNODES]; // position read at joystick at h
 float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1
 
-
+char eposPolarity[NUMBEROFNODES] = EPOS_POLARITY; // 1 if positive theta is hourly
 unsigned int motorReduction[NUMBEROFNODES] = MOTOR_REDUCTION;
 float maxVelocity[NUMBEROFNODES] = MAX_VELOCITY; // velocity limit move [rpm @ motor]
 float maxAcceleration[NUMBEROFNODES] =  MAX_ACCELERATION; // max acceleration [rpm/s @ motor]
@@ -76,16 +76,22 @@ byte ONANDENABLE[8] = {0x2B, 0x40, 0x60, 0x00, 0x0F, 0x00, 0x00, 0x00};
 
 MCP_CAN CAN(SPI_CS_PIN);
 
-enum ControlType
-{
-  Setup,
-  InitialPosition,
-  JointControl,
-  Joystick,
-  Trajectory
-};
-ControlType ControlType;
+// enum ControlType2
+// {
+//   Setup,
+//   InitialPosition,
+//   JointControl,
+//   Joystick,
+//   Trajectory
+// };
+// ControlType2 controlType2;
 
+ int controlType2 = 0;
+ const int Setup = 0;
+ const int InitialPosition = 1;
+ const int JointControl = 2;
+ const int Joystick = 3;
+ const int Trajectory = 4;
 
 
 void uSet(){
@@ -145,7 +151,7 @@ void uSet(){
 
   for(unsigned int nodeNum = 1 ; nodeNum <= numNodes ; nodeNum++){
     // set rpm to EPOS
-    rpm = u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1];
+    rpm = u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] * eposPolarity[nodeNum - 1];
     byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
     for(int i = 0; i < 4; i++){
       SETRPM[i + 4] = rpmBytes[i];
@@ -217,7 +223,8 @@ bool tetisCheckJointLimits(){
 void readTPDO1(word CANID){
   // reads TPDO1 and saves it to q and qdot
     word nodeNum = CANID - 0x180;
-    float velInRpm, posInRad;
+    float velInRpm;
+    // float posInRad;
     long posInQuadCounts;
     long* auxPointer ;
 
@@ -230,7 +237,10 @@ void readTPDO1(word CANID){
     qdot[nodeNum - 1] = velInRpm * RPMTORADS;
     // posInRad = posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1];
     // q[nodeNum - 1] = posInRad + qinit[nodeNum - 1] - qEncOffset[nodeNum - 1];
-    q[nodeNum - 1] = (posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1]) - qoffset[nodeNum - 1];
+    q[nodeNum - 1] = (posInQuadCounts * QDTORAD * eposPolarity[nodeNum - 1]
+                      / motorReduction[nodeNum - 1]) - qoffset[nodeNum - 1];
+    // Serial.print("TPDO read from node "); Serial.print(nodeNum);
+    // Serial.print(" : "); Serial.println(q[nodeNum - 1] * RADTODEG);
 }
 
 void CANListener(){
@@ -372,11 +382,11 @@ void checkHearbeat(){
   }
 }
 
-void updateControlType(){
+void updateControlType2(){
   // updates the control type to the one desired by user
   if(initialControl){
     // check user desired mode
-    ControlType = Trajectory;
+    controlType2 = Trajectory;
   }
 }
 
@@ -395,11 +405,10 @@ void setup()
     #ifdef DEBUG_MODE
     Serial.println("DEBUG: setup(): CAN BUS Shield init ok");
     #endif
-    #ifdef TO_MATLAB
-    initMatlab();
-    #endif
+
     setupShieldJoystick(); // init joystick on the shield
 
+    setupHearbeat();
     toAllNodesSDO(DISABLEVOLTAGE,0); // Send state machine to "Switch On Disable"
     toAllNodesSDO(FAULTRESET,0); // Clear all errors in all nodes (->"Switch On Disable")
     CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
@@ -415,12 +424,35 @@ void setup()
 
     delay(500); //let al the SDOs be attended
 
-    ControlType = Setup;
+    for(int i = 0; i < NUMBEROFNODES; i++ ){
+      qoffset[i] = 0.0 ;
+    }
+
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+    controlType2 = Setup;
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+    controlType2 = InitialPosition;
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+
+    #ifdef TO_MATLAB
+    initMatlab();
+    #endif
+
+    delay(500); //let al the SDOs be attended
 }
 
 
-void loop()
-{
+void loop(){
+
+    // Serial.println("DEBUG CONTROL TYPE:");
+    // Serial.println(controlType2);
+  // ControlType2 = Setup;
 
   if((millis() - tLastExec >= h)){
     tDelay = millis() - tLastExec - h;
@@ -434,10 +466,43 @@ void loop()
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)
 
-    updateControlType();
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+    controlType2 = Setup;
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+    controlType2 = InitialPosition;
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+
+    updateControlType2();
+
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+    controlType2 = Setup;
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+    controlType2 = InitialPosition;
+    Serial.println("DEBUG CONTROL TYPE:");
+    Serial.println(controlType2);
+
+    Serial.println("DEBUG CONTROL TYPES:");
+    Serial.println(Setup);
+    Serial.println(InitialPosition);
+    Serial.println(Trajectory);
+    Serial.println(JointControl);
+    Serial.println(Joystick);
+
+    delay(10000);
 
     // calculate control
-    switch (ControlType){
+    switch (controlType2){
       case Setup:
         #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering setup");
@@ -449,19 +514,27 @@ void loop()
           Serial.println(qoffset[i] * RADTODEG);
           // #endif
         }
-        ControlType =  InitialPosition;
+        controlType2 =  InitialPosition;
         break;
       case InitialPosition:
         #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering initial joint control");
         #endif
         initQPosition();
+        #ifdef TO_MATLAB
+        plotQInMatlab();
+        plotUInMatlab();
+        #endif
         break;
       case JointControl :
         #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering joint pos control");
         #endif
         jointPosControl();
+        #ifdef TO_MATLAB
+        plotQInMatlab();
+        plotUInMatlab();
+        #endif
         break;
       case Joystick :
         #ifdef DEBUG_MODE
@@ -469,6 +542,11 @@ void loop()
         #endif
         updateDirectKinematics();
         joystickControl();
+        #ifdef TO_MATLAB
+        plotXInMatlab();
+        plotQInMatlab();
+        plotUInMatlab();
+        #endif
         break;
       case Trajectory :
         #ifdef DEBUG_MODE
@@ -476,18 +554,19 @@ void loop()
         #endif
         updateDirectKinematics();
         trajectoryControl();
+        #ifdef TO_MATLAB
+        plotXInMatlab();
+        plotQInMatlab();
+        plotUInMatlab();
+        #endif
         break;
       default :
         Serial.println("WARN: loop(): Type of control invalid or not specifed");
+        break;
     }
 
     uSet(); // send control signal to nodes
 
-    #ifdef TO_MATLAB
-    plotQInMatlab();
-    plotXInMatlab();
-    plotUInMatlab();
-    #endif
   }
 }
 

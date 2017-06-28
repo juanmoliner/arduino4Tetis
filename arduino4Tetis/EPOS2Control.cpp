@@ -57,27 +57,27 @@ void trajectoryControl(){
   // xd_h[3] = 0.5235;
   // xddot_h[0] = xddot_h[1] = xddot_h[2] = xddot_h[3] = 0.0;
 
-  //Luis Gustavo Exp 6.5.1
-  xd_h[0] = 75 * (sin(wn * t) + sin(4 * wn * t)) + 500;
-  xd_h[1] = 57.0;
-  xd_h[2] = 75 * (cos(wn * t) + cos(4 * wn * t)) - 67;
-  xd_h[3] = wn * sin(wn * t);
-
-  xddot_h[0] = 75 * wn * cos(wn * t) + 300 * wn * cos(4 * wn * t);
-  xddot_h[1] = 0;
-  xddot_h[2] = -75 * wn * sin(wn * t) - 300 * wn * sin(4 * wn * t);
-  xddot_h[3] = wn * wn * cos(wn * t);
-
-  // // Luis Gustavo Exp 6.5.1
-  // xd_h[0] = ((100 * cos(t)) / (sin(t) * sin(t) + 1)) + 500;
+  // //Luis Gustavo Exp 6.5.1
+  // xd_h[0] = 75 * (sin(wn * t) + sin(4 * wn * t)) + 500;
   // xd_h[1] = 57.0;
-  // xd_h[2] = ((100 * cos(t) * sin(t)) / (sin(t) * sin(t) + 1)) - 50;
-  // xd_h[3] = 0.0;
+  // xd_h[2] = 75 * (cos(wn * t) + cos(4 * wn * t)) - 67;
+  // xd_h[3] = wn * sin(wn * t);
   //
-  // xddot_h[0] = (100 * sin(t) * (sin(t) * sin(t) - 3)) / ((sin(t) * sin(t) + 1) * (sin(t) * sin(t) + 1));
-  // xddot_h[1] = 0.0;
-  // xddot_h[2] = - (300 *  sin(t) * sin(t) - 100) / ((sin(t) * sin(t) + 1) * (sin(t) * sin(t) + 1));
-  // xddot_h[3] = 0.0;
+  // xddot_h[0] = 75 * wn * cos(wn * t) + 300 * wn * cos(4 * wn * t);
+  // xddot_h[1] = 0;
+  // xddot_h[2] = -75 * wn * sin(wn * t) - 300 * wn * sin(4 * wn * t);
+  // xddot_h[3] = wn * wn * cos(wn * t);
+
+  // Luis Gustavo Exp 6.5.1
+  xd_h[0] = ((100 * cos(t)) / (sin(t) * sin(t) + 1)) + 500;
+  xd_h[1] = 57.0;
+  xd_h[2] = ((100 * cos(t) * sin(t)) / (sin(t) * sin(t) + 1)) - 50;
+  xd_h[3] = 0.0;
+
+  xddot_h[0] = (100 * sin(t) * (sin(t) * sin(t) - 3)) / ((sin(t) * sin(t) + 1) * (sin(t) * sin(t) + 1));
+  xddot_h[1] = 0.0;
+  xddot_h[2] = - (300 *  sin(t) * sin(t) - 100) / ((sin(t) * sin(t) + 1) * (sin(t) * sin(t) + 1));
+  xddot_h[3] = 0.0;
 
 
   proportionalFF();
@@ -87,16 +87,24 @@ void joystickControl(){
   // Joystick position control (fixed pitch)
   // Control: Proportional + Feedforward (space of the actuator)
   shieldJoystick.read(); // reads desired position from shield's joystick
-  r_h[0] = shieldJoystick.getX();
-  r_h[1] = shieldJoystick.getY();
-  r_h[2] = shieldJoystick.getZ();
+  r_h[0] = shieldJoystick.getX(); // x joystick -> x robot
+  r_h[2] = shieldJoystick.getY(); // y joystic -> z robot
+  // r_h[2] = shieldJoystick.getZ();
+  r_h[1] = r_h[3] = 0.0;
+
+  #ifdef DEBUG_MODE
+  Serial.print("DEBUG: joystickControl(): r_h[0] = "); Serial.print(r_h[0]);
+  Serial.print(" r_h[1] = ");Serial.println(r_h[1]);
+  #endif
+
   // First order filter:
   // xd(h) = (1 - GAMMA * h) * xd(h-1) + GAMMA * h * r(h-1)
   // xd_dot(h) = - GAMMA * xd(h) + GAMMA * r(h)
   for(int i = 0; i < NUMBEROFNODES; i++){
-    xd_h[i] = (1 - GAMMA * h) * xd_h_1[i] + GAMMA * h * r_h_1[i];
+    xd_h[i] = (1 - GAMMA * h / 1000.0) * xd_h_1[i] + GAMMA * h / 1000.0 * r_h_1[i];
     xddot_h[i] = - GAMMA * xd_h[i] + GAMMA * r_h[i];
     r_h_1[i] = r_h[i]; // saves r(h) to r(h-1) for next iteration
+    xd_h_1[i] = xd_h[i];
   }
   proportionalFF();
 }
