@@ -157,7 +157,7 @@ void uSet(){
       SETRPM[i + 4] = rpmBytes[i];
     }
     CAN.sendMsgBuf(0x600 + nodeNum,0,8,SETRPM);
-    // printMsgCheck();
+    printMsgCheck();
   }
 }
 
@@ -232,25 +232,29 @@ void readTPDO1(word CANID){
     posInQuadCounts = *auxPointer;
 
     qdot[jointNum - 1] = velInRpm * RPMTORADS;
-    // posInRad = posInQuadCounts * QDTORAD / motorReduction[jointNum - 1];
-    // q[jointNum - 1] = posInRad + qinit[jointNum - 1] - qEncOffset[jointNum - 1];
     q[jointNum - 1] = (posInQuadCounts * QDTORAD * eposPolarity[jointNum - 1]
                       / motorReduction[jointNum - 1]) - qoffset[jointNum - 1];
 
-    Serial.print("DEBUGGGING READTPDO1 nodeNum =  "); Serial.print(nodeNum);
-    // Serial.print(" nodeIDMapping[nodeNum - 1] = "); Serial.println(nodeIDMapping[nodeNum - 1 - NODEID_OFFSET]);
-    Serial.print(" jointNum =  "); Serial.print(jointNum);
-    Serial.print(" q[jointNum - 1] * RADTODEG =  "); Serial.println(q[jointNum - 1] * RADTODEG);
+    // Serial.print("DEBUGING(PLZ REMOVE) READTPDO1 nodeNum =  "); Serial.print(nodeNum);
+    // Serial.print(" jointNum =  "); Serial.print(jointNum);
+    // Serial.print(" q[jointNum - 1] * RADTODEG =  "); Serial.println(q[jointNum - 1] * RADTODEG);
 }
 
 void CANListener(){
   word CANID;
-  unsigned char nodesRemaining = NUMBER_OF_JOINTS;
+  bool nodesRead[NUMBER_OF_JOINTS];
+  bool allNodesRead = false;
+  unsigned int tLastSync;
+
+  for(int i = 0; i < NUMBER_OF_JOINTS; i++){ //set all nodes as unread
+    nodesRead[i] = false;
+  }
 
   /* TESTING PURPOSES */
   #ifdef TWO_MOTOR_TEST
-  nodesRemaining = 2;
+
   for(int i = 2; i < NUMBER_OF_JOINTS; i++){
+    nodesRead[i] = true; // not necessary to read any node but first two
     q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
     qdot[i] = u[i];
   }
@@ -258,6 +262,7 @@ void CANListener(){
   #ifdef SIMU_MODE
   nodesRemaining = 0;
   for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+    nodesRead[i] = true;
     q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
     qdot[i] = u[i];
   }
@@ -265,10 +270,29 @@ void CANListener(){
   /* END OF TESTING PURPOSES */
 
   CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-  while(nodesRemaining > 0){
+  tLastSync = millis();
+
+  while( !allNodesRead){
     // read buffer until all nodes have responded to the sync
+    // CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
+    
+    if(millis() - tLastSync > PDO_READ_TIMEOUT){
+      CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
+      tLastSync = millis();
+    }
+
     CAN.readMsgBuf(&len, buf);
     CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
+
+    /* TAKE OFF */
+    Serial.print("DEBUGGIN(PLZ RMV): CanListener(): 0x");Serial.print(CANID,HEX);Serial.print("\t");
+    // print the data
+    for(int i = 0; i<len; i++){
+      Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
+    }
+    Serial.println();
+    /* TAKE OFF */
+
     if(CANID == 0x80){
       // Sync object received (we just sent it)
       #ifdef DEBUG_MODE
@@ -277,7 +301,7 @@ void CANListener(){
     }
     else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBER_OF_JOINTS + NODEID_OFFSET)){
       // PDO1 received from some node
-      nodesRemaining--;
+      nodesRead[CANID - 0x180 - NODEID_OFFSET - 1] = true;
       readTPDO1(CANID);
     }
     else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBER_OF_JOINTS + NODEID_OFFSET ) && (buf[0] == 0x60)){
@@ -296,7 +320,16 @@ void CANListener(){
       }
       Serial.println();
     }
+
+    allNodesRead = true;
+    for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+      if(nodesRead[i] == false){
+        allNodesRead = false;
+      }
+    }
   }
+
+  Serial.println("DEBUGGIN: ALL NODES CORRECTLY READ");
 }
 
 
@@ -364,7 +397,7 @@ void setup(){
   setupPDOs();
   setupVelocityMode();
   // setInitialVals();
-  setupHearbeat();
+  // setupHearbeat();
 
   toAllNodesSDO(SHUTDOWN,0); // Send state machine to "Ready to Switch On"
   toAllNodesSDO(ONANDENABLE,0); // Send state machine to "Operation Enable"

@@ -43,7 +43,7 @@
 /* ACTUATOR SYSTEM CONFIG */
 #define NUMBER_OF_JOINTS 4
 #define NODEID_OFFSET 5 // Offset of nodes ID(1st should be ID=1)
-#define NODEID_MAPPING {9,7,8,6}
+#define NODEID_MAPPING {9,8,7,6}
 #define MOTOR_REDUCTION {100, 100, 100, 100} // 21:1
 #define ENCODER_CPR 2000 // incremental enconder counts per revolution (assumes all system encodes have same cpr)
 #define EPOS_POLARITY {1,-1,1,1} // 1 if positive theta is hourly
@@ -56,7 +56,7 @@
 /* ARDUINO BOARD CONFIG */
 #define SPI_CS_PIN  53 // Uno: 10, Mega: 53
 #define USB_BAUDRATE 921600 // USB serial baudrate, used for debugging & warning (9600,115200,921600)
-#define CAN_BAUDRATE CAN_1000KBPS // Can network baudrate
+#define CAN_BAUDRATE CAN_500KBPS // Can network baudrate
 
 
 /* TETIS SPECIFIC DATA */
@@ -71,6 +71,7 @@
 /* TRANSMIT PDO 1 SETTINGS */
 #define TPDO1_IN_TIME 1000 // inhibit time =  TPDO1_IN_TIME * 10exp(-6)s
 #define TPDO1_TR_TYPE 1 // 255: async, 253: async on RTR only, 1:sync
+#define PDO_READ_TIMEOUT 5 // time(ms) to send new SYNC if all PDOS nto received
 
 /* ERROR CONTROL PROTOCOL SETTINGS */
 #define HEARBEAT_TIME 1000 // Hearbeat protocol producer time (multiple of 1ms)
