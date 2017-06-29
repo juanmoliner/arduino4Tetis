@@ -11,56 +11,59 @@
 #include "ShieldJoystick.h"
 #include "TetisKinematics.h"
 #include "EPOS2Control.h"
+#include "MatlabSerial.h"
 
 
 long unsigned h = SAMP_TIME; // Sampling time(ms) for the control loops
 long unsigned tLastExec; // time(ms)loop was last executed
 long unsigned tDelay; // delay from time iteration was supposed to start
 
-long unsigned lastHeartbeat[NUMBEROFNODES]; // last time[ms] hearbeat message was received
+long unsigned lastHeartbeat[NUMBER_OF_JOINTS]; // last time[ms] hearbeat message was received
 
 bool initialControl = false; // wether inital position control has already been made
 
 long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 
-float r_h[NUMBEROFNODES]; // position read at joystick at h
-float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1
+float r_h[NUMBER_OF_JOINTS]; // position read at joystick at h
+float r_h_1[NUMBER_OF_JOINTS]; // position read at joystick at h-1
 
-char eposPolarity[NUMBEROFNODES] = EPOS_POLARITY; // 1 if positive theta is hourly
-unsigned int motorReduction[NUMBEROFNODES] = MOTOR_REDUCTION;
-float maxVelocity[NUMBEROFNODES] = MAX_VELOCITY; // velocity limit move [rpm @ motor]
-float maxAcceleration[NUMBEROFNODES] =  MAX_ACCELERATION; // max acceleration [rpm/s @ motor]
+unsigned int nodeIDMapping[NUMBER_OF_JOINTS] = NODEID_MAPPING; // Node id correspondig to each joint
 
-
-float kp[NUMBEROFNODES] = KP; // actuator control proportional gain
-float xd_h[NUMBEROFNODES]; // desired position of the actuator at h(space of the joints)
-float xd_h_1[NUMBEROFNODES]; // desired position of the actuator at h-1(space of the joints)
-float xddot_h[NUMBEROFNODES]; // UNUSED???desired velocity of the actuator at h(space of the joints)
-float xddot_h_1[NUMBEROFNODES]; // desired velocity of the actuator at h-1(space of the joints)
+char eposPolarity[NUMBER_OF_JOINTS] = EPOS_POLARITY; // 1 if positive theta is hourly
+unsigned int motorReduction[NUMBER_OF_JOINTS] = MOTOR_REDUCTION;
+float maxVelocity[NUMBER_OF_JOINTS] = MAX_VELOCITY; // velocity limit move [rpm @ motor]
+float maxAcceleration[NUMBER_OF_JOINTS] =  MAX_ACCELERATION; // max acceleration [rpm/s @ motor]
 
 
-float qd[NUMBEROFNODES]; // desired position[rad] for each joint (space of the joints)
+float kp[NUMBER_OF_JOINTS] = KP; // actuator control proportional gain
+float xd_h[NUMBER_OF_JOINTS]; // desired position of the actuator at h(space of the joints)
+float xd_h_1[NUMBER_OF_JOINTS]; // desired position of the actuator at h-1(space of the joints)
+float xddot_h[NUMBER_OF_JOINTS]; // UNUSED???desired velocity of the actuator at h(space of the joints)
+float xddot_h_1[NUMBER_OF_JOINTS]; // desired velocity of the actuator at h-1(space of the joints)
 
-float x[NUMBEROFNODES]; // actual position of the actuator (space of the actuator)
 
-float kj[NUMBEROFNODES] = KJ; // joint control proportional gain
-float q[NUMBEROFNODES]; // actual position[rad] of each joint(space of the joints)
-float qdot[NUMBEROFNODES]; // actual velocity [rad/s] of each joint(space of the joints)
+float qd[NUMBER_OF_JOINTS]; // desired position[rad] for each joint (space of the joints)
 
-float u[NUMBEROFNODES]; // control variable angular velocity [rad/s]
-float ubar[NUMBEROFNODES]; // auxiliary control variable angular velocity [rad/s]
-float error[NUMBEROFNODES]; // error  defined as: e = xd -x
+float x[NUMBER_OF_JOINTS]; // actual position of the actuator (space of the actuator)
 
-float q0[NUMBEROFNODES] = Q_INIT_POSITION; // initial pos[rad] joints in initial joint control (space of the joints)
-long  qEncOffset[NUMBEROFNODES]; // initial read [rad] of incremental encoder
-float qinit[NUMBEROFNODES] = JOINTS_INIT_VALS;  // initial(calibration) angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
+float kj[NUMBER_OF_JOINTS] = KJ; // joint control proportional gain
+float q[NUMBER_OF_JOINTS]; // actual position[rad] of each joint(space of the joints)
+float qdot[NUMBER_OF_JOINTS]; // actual velocity [rad/s] of each joint(space of the joints)
 
-float qoffset[NUMBEROFNODES];
+float u[NUMBER_OF_JOINTS]; // control variable angular velocity [rad/s]
+float ubar[NUMBER_OF_JOINTS]; // auxiliary control variable angular velocity [rad/s]
+float error[NUMBER_OF_JOINTS]; // error  defined as: e = xd -x
+
+float q0[NUMBER_OF_JOINTS] = Q_INIT_POSITION; // initial pos[rad] joints in initial joint control (space of the joints)
+long  qEncOffset[NUMBER_OF_JOINTS]; // initial read [rad] of incremental encoder
+float qinit[NUMBER_OF_JOINTS] = JOINTS_INIT_VALS;  // initial(calibration) angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
+
+float qoffset[NUMBER_OF_JOINTS];
 
 float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
-float J0[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the base (joint 0)
-float J0_inv[NUMBEROFNODES][NUMBEROFNODES]; // Inverse of jacobian at the base (joint 0)
-float JN[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the actuator (joint n)
+float J0[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the base (joint 0)
+float J0_inv[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Inverse of jacobian at the base (joint 0)
+float JN[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the actuator (joint n)
 
 
 Joystick shieldJoystick;
@@ -89,16 +92,18 @@ ControlType controlType;
 
 void uSet(){
   // writes to EPOS the values stored in control variable u (via SDO)
-  unsigned int numNodes = NUMBEROFNODES;
+  unsigned int numJoints = NUMBER_OF_JOINTS;
+  unsigned int nodeNum;
+
   byte SETRPM[8] = {0x23, 0x6B, 0x20, 0x00,0,0,0,0};
   long rpm;
 
   /* TESTING PURPOSES*/
   #ifdef TWO_MOTOR_TEST
-  numNodes = 2;
+  numJoints = 2;
   #endif
   #ifdef SIMU_MODE
-  numNodes = 0;
+  numJoints = 0;
   #endif
   /* END OF TESTING PURPOSES*/
 
@@ -106,7 +111,7 @@ void uSet(){
   #ifndef FORGET_JLMITS_COLIS
   if(tetisCheckColision() || tetisCheckJointLimits()){
     // danger: set control to zero
-    for(int i = 0; i < NUMBEROFNODES; i++){
+    for(int i = 0; i < NUMBER_OF_JOINTS; i++){
       u[i] = 0.0;
     }
   }
@@ -114,143 +119,145 @@ void uSet(){
 
   // check saturation
   #ifndef FORGET_SATURATION
-  for(unsigned int nodeNum = 1 ; nodeNum <= NUMBEROFNODES ; nodeNum++){
-    if (u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] > maxVelocity[nodeNum - 1]){
+  for(unsigned int jointNum = 1 ; jointNum <= NUMBER_OF_JOINTS ; jointNum++){
+    if (u[jointNum - 1] * RADSTORPM * motorReduction[jointNum - 1] > maxVelocity[jointNum - 1]){
       // if control > max veloc -> saturate output
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
-      Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[rad/s] = "); Serial.print(u[nodeNum - 1]);
-      Serial.print(" u[rpm] = "); Serial.print(u[nodeNum - 1] * RADSTORPM);
-      Serial.print(" set to[rpm]:   "); Serial.println(maxVelocity[nodeNum - 1] / RADSTORPM / motorReduction[nodeNum - 1]);
+      Serial.print("DEBUG: uSet(): joint "); Serial.print(jointNum);
+      Serial.print(" saturated. u[rad/s] = "); Serial.print(u[jointNum - 1]);
+      Serial.print(" u[rpm] = "); Serial.print(u[jointNum - 1] * RADSTORPM);
+      Serial.print(" set to[rpm]:   "); Serial.println(maxVelocity[jointNum - 1] / RADSTORPM / motorReduction[jointNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = maxVelocity[nodeNum - 1] * RADSTORPM / motorReduction[nodeNum - 1];
+      u[jointNum - 1] = maxVelocity[jointNum - 1] * RADSTORPM / motorReduction[jointNum - 1];
     }
-    else if( u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] < - maxVelocity[nodeNum - 1]){
+    else if( u[jointNum - 1] * RADSTORPM * motorReduction[jointNum - 1] < - maxVelocity[jointNum - 1]){
       // if control > -max veloc -> saturate output
       /* DEBUGGING PURPOSES */
       #ifdef DEBUG_MODE
-      Serial.print("DEBUG: uSet(): joint "); Serial.print(nodeNum);
-      Serial.print(" saturated. u[rad/s] = "); Serial.print(u[nodeNum - 1]);
-      Serial.print(" u[rpm] = "); Serial.print(u[nodeNum - 1] * RADSTORPM);
-      Serial.print(" set to[rpm]:   "); Serial.println( - maxVelocity[nodeNum - 1] * RADSTORPM / motorReduction[nodeNum - 1]);
+      Serial.print("DEBUG: uSet(): joint "); Serial.print(jointNum);
+      Serial.print(" saturated. u[rad/s] = "); Serial.print(u[jointNum - 1]);
+      Serial.print(" u[rpm] = "); Serial.print(u[jointNum - 1] * RADSTORPM);
+      Serial.print(" set to[rpm]:   "); Serial.println( - maxVelocity[jointNum - 1] * RADSTORPM / motorReduction[jointNum - 1]);
       #endif
       /* END OF DEBUGGING PURPOSES */
-      u[nodeNum - 1] = - (maxVelocity[nodeNum - 1] * RADSTORPM / motorReduction[nodeNum - 1]);
+      u[jointNum - 1] = - (maxVelocity[jointNum - 1] * RADSTORPM / motorReduction[jointNum - 1]);
     }
   }
     #endif // #ifndef FORGET_SATURATION
 
-  for(unsigned int nodeNum = 1 ; nodeNum <= numNodes ; nodeNum++){
+  for(unsigned int jointNum = 1 ; jointNum <= numJoints ; jointNum++){
     // set rpm to EPOS
+    nodeNum = nodeIDMapping[jointNum - 1];
+
     rpm = u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] * eposPolarity[nodeNum - 1];
     byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
     for(int i = 0; i < 4; i++){
       SETRPM[i + 4] = rpmBytes[i];
     }
-    CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET,0,8,SETRPM);
+    CAN.sendMsgBuf(0x600 + nodeNum,0,8,SETRPM);
     // printMsgCheck();
   }
 }
 
-void setVelocity(int nodeNum, long rpm){
-  // sets to EPOS the target velocity for joint nodeNum passed in rpm (via SDO)
-    word nodeID = 0x600 + nodeNum;
-    byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
-    byte SETRPM[8] = {0x23, 0x6B, 0x20, 0x00, rpmBytes[0], rpmBytes[1], rpmBytes[2], rpmBytes[3]};
-    CAN.sendMsgBuf(nodeID + NODEID_OFFSET,0,8,SETRPM);
-    printMsgCheck();
-  }
 
+bool tetisCheckColision(){
+  // Tetis specific function: checks if any joint is about to colide
+  // with another (returns true if so)
+  // Calculating Forward Kinematics for each joint
+    float p02[3] = {E3*c1*c2, E3*c2*s1, E3*s2};
+    float p23[3] = {E4*c1*c2*c3 - E4*c1*s2*s3, E4*c2*c3*s1 - E4*s1*s2*s3, c2*s3 + c3*s2};
+    float p03[3];
+    float p04[3] =  {-M5*s1+E4*c23*c1+E3*c1*c2+E5*c234*c1,
+                      M5*c1+E4*c23*s1+E3*c2*s1+E5*c234*s1,
+                      E4*s23+E3*s2+E5*s234};
+    bool joint3, joint4, eff;
+    joint3 = joint4 = eff = false;
+    for(int i = 0; i<3; i++){
+      p03[i] = p02[i] + p23[i];
+    }
+    if ( (p02[0] < 200) && (p02[1] < 152 || p02[1] > -152) &&  (p02[2] > 0)){
+        Serial.println("WARN: tetisCheckColision(): COLLISION imminent with joint 3");
+        joint3 = true;
+    }
+    if ( (p03[0] < 200) && (p03[1] < 152 || p03[1] > -152) && (p03[2] > 0) ){
+        Serial.println("WARN: tetisCheckColision(): COLLISION imminent with joint 4");
+        joint4 = true;
+    }
+    if ( (p04[0] < 200) && (p04[1] < 152 || p04[1] > -152) && (p04[2] > 0) ){
+        Serial.println("WARN: tetisCheckColision(): COLLISION imminent with effector");
+        eff = true;
+    }
 
-
-  bool tetisCheckColision(){
-    // Tetis specific function: checks if any joint is about to colide
-    // with another (returns true if so)
-    // Calculating Forward Kinematics for each joint
-      float p02[3] = {E3*c1*c2, E3*c2*s1, E3*s2};
-      float p23[3] = {E4*c1*c2*c3 - E4*c1*s2*s3, E4*c2*c3*s1 - E4*s1*s2*s3, c2*s3 + c3*s2};
-      float p03[3];
-      float p04[3] =  {-M5*s1+E4*c23*c1+E3*c1*c2+E5*c234*c1,
-                        M5*c1+E4*c23*s1+E3*c2*s1+E5*c234*s1,
-                        E4*s23+E3*s2+E5*s234};
-      bool joint3, joint4, eff;
-      joint3 = joint4 = eff = false;
-      for(int i = 0; i<3; i++){
-        p03[i] = p02[i] + p23[i];
-      }
-      if ( (p02[0] < 200) && (p02[1] < 152 || p02[1] > -152) &&  (p02[2] > 0)){
-          Serial.println("WARN: tetisCheckColision(): COLLISION imminent with joint 3");
-          joint3 = true;
-      }
-      if ( (p03[0] < 200) && (p03[1] < 152 || p03[1] > -152) && (p03[2] > 0) ){
-          Serial.println("WARN: tetisCheckColision(): COLLISION imminent with joint 4");
-          joint4 = true;
-      }
-      if ( (p04[0] < 200) && (p04[1] < 152 || p04[1] > -152) && (p04[2] > 0) ){
-          Serial.println("WARN: tetisCheckColision(): COLLISION imminent with effector");
-          eff = true;
-      }
-
-      if (joint3 || joint4 || eff){
-        return true;
-      }
-      else return false;
-  }
+    if (joint3 || joint4 || eff){
+      return true;
+    }
+    else return false;
+}
 
 bool tetisCheckJointLimits(){
   // Tetis specific function: checks if any joint has exceeded its mechanical
   // limit (returns true if so)
-      if (  q[1] > 0  + J_LIMIT_OVP_ALLWD || q[1] < -PI/2 - J_LIMIT_OVP_ALLWD
-         || q[2] > PI + J_LIMIT_OVP_ALLWD || q[2] < -PI   - J_LIMIT_OVP_ALLWD
-         || q[3] > PI + J_LIMIT_OVP_ALLWD || q[3] < -PI   - J_LIMIT_OVP_ALLWD
-       )
-      {
-          Serial.println("WARN: tetisCheckJointLimits(): Joints execeded limits");
-          return true;
-      }
-      else return false;
-  }
+    if (  q[1] > 0  + J_LIMIT_OVP_ALLWD || q[1] < -PI/2 - J_LIMIT_OVP_ALLWD
+       || q[2] > PI + J_LIMIT_OVP_ALLWD || q[2] < -PI   - J_LIMIT_OVP_ALLWD
+       || q[3] > PI + J_LIMIT_OVP_ALLWD || q[3] < -PI   - J_LIMIT_OVP_ALLWD
+     )
+    {
+        Serial.println("WARN: tetisCheckJointLimits(): Joints execeded limits");
+        return true;
+    }
+    else return false;
+}
 
 void readTPDO1(word CANID){
   // reads TPDO1 and saves it to q and qdot
     word nodeNum = CANID - 0x180;
+    word jointNum;
     float velInRpm;
-    // float posInRad;
     long posInQuadCounts;
     long* auxPointer ;
 
+    // cutrez, tipo diccionario
+    for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+      if(nodeIDMapping[i] == nodeNum){
+        jointNum = i + 1;
+      }
+    }
+
     auxPointer = (long*) buf; //access first 4 bytes of TPDO data
-    velInRpm = (float)(*auxPointer) / motorReduction[nodeNum - 1];
+    velInRpm = (float)(*auxPointer) / motorReduction[jointNum - 1];
 
     auxPointer =  (long*) (buf + 4); //access last 4 bytes of TPDO data
     posInQuadCounts = *auxPointer;
 
-    qdot[nodeNum - 1] = velInRpm * RPMTORADS;
-    // posInRad = posInQuadCounts * QDTORAD / motorReduction[nodeNum - 1];
-    // q[nodeNum - 1] = posInRad + qinit[nodeNum - 1] - qEncOffset[nodeNum - 1];
-    q[nodeNum - 1] = (posInQuadCounts * QDTORAD * eposPolarity[nodeNum - 1]
-                      / motorReduction[nodeNum - 1]) - qoffset[nodeNum - 1];
-    // Serial.print("TPDO read from node "); Serial.print(nodeNum);
-    // Serial.print(" : "); Serial.println(q[nodeNum - 1] * RADTODEG);
+    qdot[jointNum - 1] = velInRpm * RPMTORADS;
+    // posInRad = posInQuadCounts * QDTORAD / motorReduction[jointNum - 1];
+    // q[jointNum - 1] = posInRad + qinit[jointNum - 1] - qEncOffset[jointNum - 1];
+    q[jointNum - 1] = (posInQuadCounts * QDTORAD * eposPolarity[jointNum - 1]
+                      / motorReduction[jointNum - 1]) - qoffset[jointNum - 1];
+
+    Serial.print("DEBUGGGING READTPDO1 nodeNum =  "); Serial.print(nodeNum);
+    // Serial.print(" nodeIDMapping[nodeNum - 1] = "); Serial.println(nodeIDMapping[nodeNum - 1 - NODEID_OFFSET]);
+    Serial.print(" jointNum =  "); Serial.print(jointNum);
+    Serial.print(" q[jointNum - 1] * RADTODEG =  "); Serial.println(q[jointNum - 1] * RADTODEG);
 }
 
 void CANListener(){
   word CANID;
-  unsigned char nodesRemaining = NUMBEROFNODES;
+  unsigned char nodesRemaining = NUMBER_OF_JOINTS;
 
   /* TESTING PURPOSES */
   #ifdef TWO_MOTOR_TEST
   nodesRemaining = 2;
-  for(int i = 2; i < NUMBEROFNODES; i++){
+  for(int i = 2; i < NUMBER_OF_JOINTS; i++){
     q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
     qdot[i] = u[i];
   }
   #endif
   #ifdef SIMU_MODE
   nodesRemaining = 0;
-  for(int i = 0; i < NUMBEROFNODES; i++){
+  for(int i = 0; i < NUMBER_OF_JOINTS; i++){
     q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
     qdot[i] = u[i];
   }
@@ -268,15 +275,15 @@ void CANListener(){
       Serial.println("DEBUG: CANListener(): Sync object sucessfuly sent");
       #endif
     }
-    else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET)){
+    else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBER_OF_JOINTS + NODEID_OFFSET)){
       // PDO1 received from some node
       nodesRemaining--;
       readTPDO1(CANID);
     }
-    else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBEROFNODES + NODEID_OFFSET) && (buf[0] == 0x60)){
+    else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBER_OF_JOINTS + NODEID_OFFSET ) && (buf[0] == 0x60)){
       // SDO receiving message arrived, confirmation of SDO write object succesfuly received by its intended node
       }
-    else if ((CANID > 0x700 + NODEID_OFFSET) && (CANID <= 0x700 + NUMBEROFNODES + NODEID_OFFSET)){
+    else if ((CANID > 0x700 + NODEID_OFFSET) && (CANID <= 0x700 + NUMBER_OF_JOINTS + NODEID_OFFSET )){
       // Hearbeat message received from some node
       lastHeartbeat[(CANID - 0x700) - 1] = millis();
     }
@@ -292,83 +299,31 @@ void CANListener(){
   }
 }
 
-void plotXInMatlab(){
-  static long unsigned tLastPlot;
-  if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    //actually not necessary since only used inside timed main loop
-    Serial.print("ToMatlabX: ");
-    for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(xd_h[i], MATLAB_PREC); Serial.print(" ");
-    }
-    for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(x[i], MATLAB_PREC); Serial.print(" ");
-    }
-    Serial.print(millis() - tInitPlot); Serial.print(" ");
-    Serial.println();
-    tLastPlot = millis();
-  }
-}
-
-void plotQInMatlab(){
-  static long unsigned tLastPlot;
-  if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    //actually not necessary since only used inside timed main loop
-    Serial.print("ToMatlabQ: ");
-    for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(qd[i] * RADTODEG, MATLAB_PREC); Serial.print(" ");
-    }
-    for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(q[i] * RADTODEG, MATLAB_PREC); Serial.print(" ");
-    }
-    Serial.print(millis() - tInitPlot); Serial.print(" ");
-    Serial.println();
-    tLastPlot = millis();
-  }
-}
-
-void plotUInMatlab(){
-  static long unsigned tLastPlot;
-  if(millis() - tLastPlot > MATLAB_PLOT_SAMPLE_T){
-    //actually not necessary since only used inside timed main loop
-    Serial.print("ToMatlabU: ");
-    for(int i = 0; i < NUMBEROFNODES; i++){
-      Serial.print(u[i] * RADTODEG,MATLAB_PREC); Serial.print(" ");
-    }
-    Serial.print(millis() - tInitPlot); Serial.print(" ");
-    Serial.println();
-    tLastPlot = millis();
-  }
-}
-
-void initMatlab(){
-  // Sends command to beging Matlab data aquisition
-  Serial.println("--BEGIN OF MATLAB TRANSMISSION--");
-}
-
 
 void checkHearbeat(){
   // checks if hearbeat time has elapsed for any node and, if so, raises an error
-  unsigned int numNodes = NUMBEROFNODES;
-
+  unsigned int numJoints = NUMBER_OF_JOINTS;
+  unsigned int nodeNum;
   /* TESTING PURPOSES*/
   #ifdef TWO_MOTOR_TEST
-  numNodes = 2;
+  numJoints = 2;
   #endif
   #ifdef SIMU_MODE
-  numNodes = 0;
+  numJoints = 0;
   #endif
   /* END OF TESTING PURPOSES*/
 
-  for(unsigned int i = 0; i < numNodes; i++){
-    if(millis() - lastHeartbeat[i] > HEARBEAT_TIME + HB_DELAY_ALWD){
+  for(unsigned int jointNum = 1; jointNum < numJoints; jointNum++){
+    nodeNum = nodeIDMapping[jointNum - 1];
+    if(millis() - lastHeartbeat[jointNum] > HEARBEAT_TIME + HB_DELAY_ALWD){
       // a node has not sent hb message last cycle
-      Serial.print("WARN: checkHearbeat(): Node "); Serial.print(i + 1);
-      Serial.print(" has not responded in last "); Serial.print(millis() - lastHeartbeat[i] - HEARBEAT_TIME);
+      Serial.print("WARN: checkHearbeat(): Node "); Serial.print(nodeNum);
+      Serial.print(" has not responded in last "); Serial.print(millis() - lastHeartbeat[nodeNum - 1] - HEARBEAT_TIME);
       Serial.println(" ms");
     }
     #ifdef DEBUG_MODE
     else{
-      Serial.print("DEBUG: checkHearbeat(): Node "); Serial.print(i + 1);
+      Serial.print("DEBUG: checkHearbeat(): Node "); Serial.print(nodeNum);
       Serial.println(" responding");
     }
     #endif
@@ -383,57 +338,50 @@ void updateControlType(){
   }
 }
 
-void setup()
-{
-    Serial.begin(USB_BAUDRATE); // init serial comunication (USB->Arduino)
-    #ifdef DEBUG_MODE
-    Serial.println("----------------- RESTART ------------------");
-    #endif
-    while (CAN_OK != CAN.begin(CAN_BAUDRATE))     // init can bus : baudrate = 500k
-    {
-        Serial.println("WARN: setup(): CAN BUS Shield init fail");
-        Serial.println("WARN: setup(): Init CAN BUS Shield again");
-        delay(100);
-    }
-    #ifdef DEBUG_MODE
-    Serial.println("DEBUG: setup(): CAN BUS Shield init ok");
-    #endif
+void setup(){
+  Serial.begin(USB_BAUDRATE); // init serial comunication (USB->Arduino)
+  #if defined(DEBUG_MODE) || defined(TO_MATLAB)
+  Serial.println("----------------- RESTART ------------------");
+  #endif
 
-    setupShieldJoystick(); // init joystick on the shield
+  while (CAN_OK != CAN.begin(CAN_BAUDRATE))     // init can bus : baudrate = 500k
+  {
+      Serial.println("WARN: setup(): CAN BUS Shield init fail");
+      Serial.println("WARN: setup(): Init CAN BUS Shield again");
+      delay(100);
+  }
+  #ifdef DEBUG_MODE
+  Serial.println("DEBUG: setup(): CAN BUS Shield init ok");
+  #endif
 
-    setupHearbeat();
-    toAllNodesSDO(DISABLEVOLTAGE,0); // Send state machine to "Switch On Disable"
-    toAllNodesSDO(FAULTRESET,0); // Clear all errors in all nodes (->"Switch On Disable")
-    CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
+  setupShieldJoystick(); // init joystick on the shield
 
-    setupPDOs();
-    setupVelocityMode();
-    // setInitialVals();
-    setupHearbeat();
+  setupHearbeat();
+  toAllNodesSDO(DISABLEVOLTAGE,0); // Send state machine to "Switch On Disable"
+  toAllNodesSDO(FAULTRESET,0); // Clear all errors in all nodes (->"Switch On Disable")
+  CAN.sendMsgBuf(0x000,0,2,PREOPERATIONAL); printMsgCheck(); // NMT: set CanOpen network to Pre-operational
 
-    toAllNodesSDO(SHUTDOWN,0); // Send state machine to "Ready to Switch On"
-    toAllNodesSDO(ONANDENABLE,0); // Send state machine to "Operation Enable"
-    CAN.sendMsgBuf(0x000,0,2,OPERATIONAL); printMsgCheck(); // NMT: set CanOpen to Operational
+  setupPDOs();
+  setupVelocityMode();
+  // setInitialVals();
+  setupHearbeat();
 
-    delay(500); //let al the SDOs be attended
+  toAllNodesSDO(SHUTDOWN,0); // Send state machine to "Ready to Switch On"
+  toAllNodesSDO(ONANDENABLE,0); // Send state machine to "Operation Enable"
+  CAN.sendMsgBuf(0x000,0,2,OPERATIONAL); printMsgCheck(); // NMT: set CanOpen to Operational
 
-    for(int i = 0; i < NUMBEROFNODES; i++ ){
-      qoffset[i] = 0.0 ;
-    }
+  delay(500); //let al the SDOs be attended
 
+  for(int i = 0; i < NUMBER_OF_JOINTS; i++ ){
+    qoffset[i] = 0.0 ;
+  }
+  controlType = Setup;
+  tInitPlot = millis(); // zero time for Matlab plot
 
-    #ifdef TO_MATLAB
-    initMatlab();
-    #endif
-
-    delay(500); //let al the SDOs be attended
-
-    controlType = Setup;
 }
 
 
 void loop(){
-
   if((millis() - tLastExec >= h)){
     tDelay = millis() - tLastExec - h;
     if(tDelay > PERMT_DELAY && tLastExec != 0){
@@ -446,9 +394,7 @@ void loop(){
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)
 
-
     updateControlType();
-
 
     // calculate control
     switch (controlType){
@@ -456,7 +402,7 @@ void loop(){
         #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering setup");
         #endif
-        for(int i = 0; i < NUMBEROFNODES; i++ ){
+        for(int i = 0; i < NUMBER_OF_JOINTS; i++ ){
           qoffset[i] = q[i] - qinit[i];
           // #ifdef DEBUG_MODE
           Serial.print("DEBUG: loop(): qoffset = ");

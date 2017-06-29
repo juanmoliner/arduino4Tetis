@@ -19,7 +19,7 @@
 #define MATLAB_PLOT_SAMPLE_T 60 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
 // #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
@@ -29,8 +29,8 @@
 
 /* CONTROL PARAMETERS*/
 // #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
-// #define FORGET_SATURATION // define to take off saturation limits
-#define SAMP_TIME 30 // Sampling time (ms) for the control loops
+#define FORGET_SATURATION // define to take off saturation limits
+#define SAMP_TIME 40 // Sampling time (ms) for the control loops
 #define PERMT_DELAY 0 // Acceptable delay (ms) for each loop
 #define GAMMA 10 // gamma constant of first order filter in joystick control
 #define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain
@@ -41,12 +41,13 @@
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
 
 /* ACTUATOR SYSTEM CONFIG */
-#define NUMBEROFNODES 4
+#define NUMBER_OF_JOINTS 4
 #define NODEID_OFFSET 5 // Offset of nodes ID(1st should be ID=1)
+#define NODEID_MAPPING {9,7,8,6}
 #define MOTOR_REDUCTION {100, 100, 100, 100} // 21:1
 #define ENCODER_CPR 2000 // incremental enconder counts per revolution (assumes all system encodes have same cpr)
 #define EPOS_POLARITY {1,-1,1,1} // 1 if positive theta is hourly
-#define MAX_VELOCITY {6200, 6300, 6250, 6250} // velocity limit move [rpm @ motor]
+#define MAX_VELOCITY {620, 630, 625, 625} // velocity limit move [rpm @ motor]
 #define MAX_ACCELERATION {600, 750, 650, 650} // max acceleration [rpm/s @ motor]
 #define JOINTS_INIT_VALS {0.0, -PI/2, 0.0, 0.0}
 #define J_LIMIT_OVP_ALLWD 0.1 * DEGTORAD // allowed overpass of joint limit [rad]
@@ -80,44 +81,48 @@ extern long unsigned h; // Sampling time(ms) for the control loops
 extern long unsigned tLastExec; // time(ms)loop was last executed
 extern long unsigned tDelay; // delay from time iteration was supposed to start
 
-extern long unsigned lastHeartbeat[NUMBEROFNODES]; // last time[ms] hearbeat message was received
+extern long unsigned lastHeartbeat[NUMBER_OF_JOINTS]; // last time[ms] hearbeat message was received
 
 extern long unsigned tLastPlot; // time(ms) last plot in Matlab
 
 extern bool initialControl; // wether inital position control has already been made
 
-extern float r_h[NUMBEROFNODES]; // position read at joystick at h
-extern float r_h_1[NUMBEROFNODES]; // position read at joystick at h-1
+extern long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 
-extern char eposPolarity[NUMBEROFNODES]; // 1 if positive theta is hourly
-extern unsigned int motorReduction[NUMBEROFNODES];
-extern float maxVelocity[NUMBEROFNODES]; // velocity limit move [rpm @ motor]
-extern float maxAcceleration[NUMBEROFNODES];// max acceleration [rpm/s @ motor]
+extern float r_h[NUMBER_OF_JOINTS]; // position read at joystick at h
+extern float r_h_1[NUMBER_OF_JOINTS]; // position read at joystick at h-1
 
-extern float kp[NUMBEROFNODES]; // actuator control proportional gain
-extern float xd_h[NUMBEROFNODES]; // desired position of the actuator at h(space of the joints)
-extern float xd_h_1[NUMBEROFNODES]; // desired position of the actuator at h-1(space of the joints)
-extern float xddot_h[NUMBEROFNODES]; // UNUSED???desired velocity of the actuator at h(space of the joints)
-extern float xddot_h_1[NUMBEROFNODES]; // desired velocity of the actuator at h-1(space of the joints)
+extern unsigned int nodeIDMapping[NUMBER_OF_JOINTS]; // Node id correspondig to each joint
 
-extern float qd[NUMBEROFNODES]; // desired position[rad] for each joint (space of the joints)
+extern char eposPolarity[NUMBER_OF_JOINTS]; // 1 if positive theta is hourly
+extern unsigned int motorReduction[NUMBER_OF_JOINTS];
+extern float maxVelocity[NUMBER_OF_JOINTS]; // velocity limit move [rpm @ motor]
+extern float maxAcceleration[NUMBER_OF_JOINTS];// max acceleration [rpm/s @ motor]
 
-extern float x[NUMBEROFNODES]; // actual position of the actuator (space of the actuator)
-extern float kj[NUMBEROFNODES]; // joint control proportional gain
-extern float q[NUMBEROFNODES]; // actual position[rad] of each joint(space of the joints)
-extern float qdot[NUMBEROFNODES]; // actual velocity [rad/s] of each joint(space of the joints)
+extern float kp[NUMBER_OF_JOINTS]; // actuator control proportional gain
+extern float xd_h[NUMBER_OF_JOINTS]; // desired position of the actuator at h(space of the joints)
+extern float xd_h_1[NUMBER_OF_JOINTS]; // desired position of the actuator at h-1(space of the joints)
+extern float xddot_h[NUMBER_OF_JOINTS]; // UNUSED???desired velocity of the actuator at h(space of the joints)
+extern float xddot_h_1[NUMBER_OF_JOINTS]; // desired velocity of the actuator at h-1(space of the joints)
 
-extern float u[NUMBEROFNODES]; // control variable angular velocity [rad/s]
-extern float ubar[NUMBEROFNODES]; // auxiliary control variable angular velocity [rad/s]
-extern float error[NUMBEROFNODES]; // error  defined as: e = xd -x
+extern float qd[NUMBER_OF_JOINTS]; // desired position[rad] for each joint (space of the joints)
 
-extern long  qEncOffset[NUMBEROFNODES]; // initial read [qd] of incremental encoder
-extern float qinit[NUMBEROFNODES];  // initial angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
+extern float x[NUMBER_OF_JOINTS]; // actual position of the actuator (space of the actuator)
+extern float kj[NUMBER_OF_JOINTS]; // joint control proportional gain
+extern float q[NUMBER_OF_JOINTS]; // actual position[rad] of each joint(space of the joints)
+extern float qdot[NUMBER_OF_JOINTS]; // actual velocity [rad/s] of each joint(space of the joints)
+
+extern float u[NUMBER_OF_JOINTS]; // control variable angular velocity [rad/s]
+extern float ubar[NUMBER_OF_JOINTS]; // auxiliary control variable angular velocity [rad/s]
+extern float error[NUMBER_OF_JOINTS]; // error  defined as: e = xd -x
+
+extern long  qEncOffset[NUMBER_OF_JOINTS]; // initial read [qd] of incremental encoder
+extern float qinit[NUMBER_OF_JOINTS];  // initial angle of each joint. MAKE SURE ALL JOINTS START IN THIS POSITION
 
 extern float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
-extern float J0[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the base (joint 0)
-extern float J0_inv[NUMBEROFNODES][NUMBEROFNODES]; // Inverse of jacobian at the base (joint 0)
-extern float JN[NUMBEROFNODES][NUMBEROFNODES]; // Jacobian at the actuator (joint n)
+extern float J0[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the base (joint 0)
+extern float J0_inv[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Inverse of jacobian at the base (joint 0)
+extern float JN[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the actuator (joint n)
 
 extern Joystick shieldJoystick;
 

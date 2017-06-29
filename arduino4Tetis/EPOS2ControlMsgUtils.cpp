@@ -25,20 +25,22 @@ void printMsgCheck(){
 
 void toAllNodesSDO(byte* DATA, bool ext){
   //Sends a write SDO message to all nodes in CAN Network
-  unsigned int numNodes = NUMBEROFNODES;
+  unsigned int numJoints = NUMBER_OF_JOINTS;
+  word nodeNum;
   /* TESTING PURPOSES*/
   #ifdef TWO_MOTOR_TEST
-  numNodes = 2;
+  numJoints = 2;
   #endif
   #ifdef SIMU_MODE
-  numNodes = 0;
+  numJoints = 0;
   #endif
   /* END OF TESTING PURPOSES*/
-   for(word nodeNum = 1; nodeNum <= numNodes ; nodeNum++){
-     CAN.sendMsgBuf(0x600 + nodeNum + NODEID_OFFSET, ext, 8, DATA);
+   for(word jointNum = 1; jointNum <= numJoints ; jointNum++){
+     nodeNum = nodeIDMapping[jointNum - 1];
+     CAN.sendMsgBuf(0x600 + nodeNum, ext, 8, DATA);
      do{
        // keep printing everything in the buffer until Receving SDO found
        printMsgCheck();
-     }while(COBId != 0x580 + nodeNum + NODEID_OFFSET && buf[0] != 60);
+     }while(COBId != 0x580 + nodeNum && buf[0] != 60);
    }
 }

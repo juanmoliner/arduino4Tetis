@@ -5,53 +5,53 @@
 #include "TetisKinematics.h"
 
 
-void initXPosition(){
-  // Takes actuator to initial x position(mm)(space of the actuator)
-  // Control: Prop+FF until max error < INIT_X_MAX_ERROR
-  float x0[NUMBEROFNODES] = X_INIT_POSITION;
-  float maxError; // max error out of all coordenates
-  for(int i = 0; i < NUMBEROFNODES; i++){
-    xd_h[i] = x0[i];
-  }
-  do{
-    maxError = 0; // resets the maximum error
-    CANListener(); // get data from EPOS nodes in CAN bus
-    updateTetisData(); // update tetis values (cij, cijk,..)
-    updateDirectKinematics();
-    proportionalFF();
-    uSet();
-    for(int i = 0; i < NUMBEROFNODES; i++){
-      if(abs(error[i]) > maxError) maxError = abs(error[i]);
-    }
-    #ifdef DEBUG_MODE
-    Serial.print("DEBUG: initXPosition(): Max error: "); Serial.println(maxError);
-    #endif
-  }while(maxError > INIT_X_MAX_ERROR);
-  // leave actuator in that position -> zero control
-  for(int i = 0; i < NUMBEROFNODES; i++){
-    u[i] = 0.0;
-  }
-  uSet();
-  #ifdef DEBUG_MODE
-  Serial.println("DEBUG: initXPosition(): exitting");
-  #endif
-}
-
+// void initXPosition(){
+//   // Takes actuator to initial x position(mm)(space of the actuator)
+//   // Control: Prop+FF until max error < INIT_X_MAX_ERROR
+//   float x0[NUMBER_OF_JOINTS] = X_INIT_POSITION;
+//   float maxError; // max error out of all coordenates
+//   for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+//     xd_h[i] = x0[i];
+//   }
+//   do{
+//     maxError = 0; // resets the maximum error
+//     CANListener(); // get data from EPOS nodes in CAN bus
+//     updateTetisData(); // update tetis values (cij, cijk,..)
+//     updateDirectKinematics();
+//     proportionalFF();
+//     uSet();
+//     for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+//       if(abs(error[i]) > maxError) maxError = abs(error[i]);
+//     }
+//     #ifdef DEBUG_MODE
+//     Serial.print("DEBUG: initXPosition(): Max error: "); Serial.println(maxError);
+//     #endif
+//   }while(maxError > INIT_X_MAX_ERROR);
+//   // leave actuator in that position -> zero control
+//   for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+//     u[i] = 0.0;
+//   }
+//   uSet();
+//   #ifdef DEBUG_MODE
+//   Serial.println("DEBUG: initXPosition(): exitting");
+//   #endif
+// }
+//
 
 
 
 void initQPosition(){
   // initial position control in space of the joints to take them out
   // of calibration position
-  float q0[NUMBEROFNODES] = Q_INIT_POSITION;
+  float q0[NUMBER_OF_JOINTS] = Q_INIT_POSITION;
   float maxError = 0; // max error out of all joints
 
-  for(int i = 0; i < NUMBEROFNODES; i++){
+  for(int i = 0; i < NUMBER_OF_JOINTS; i++){
     qd[i] = q0[i];
   }
   jointPosControl();
 
-  for(int i = 0; i < NUMBEROFNODES; i++){
+  for(int i = 0; i < NUMBER_OF_JOINTS; i++){
     if(abs(error[i]) > maxError) maxError = abs(error[i]);
   }
   #ifdef DEBUG_MODE
@@ -65,7 +65,7 @@ void initQPosition(){
     #ifdef DEBUG_MODE
     Serial.println("DEBUG: initQPosition(): Exitting");
     #endif
-    for(int i = 0; i < NUMBEROFNODES; i++){
+    for(int i = 0; i < NUMBER_OF_JOINTS; i++){
       u[i] = 0.0; // zero control for safety
     }
   }
@@ -76,9 +76,9 @@ void initQPosition(){
 //
 // void initQPosition(){
 //   // Initial Joint control to take them out of singular position
-//   float q0[NUMBEROFNODES] = Q_INIT_POSITION;
+//   float q0[NUMBER_OF_JOINTS] = Q_INIT_POSITION;
 //   float maxError; // max error out of all joints
-//   for(int i = 0; i < NUMBEROFNODES; i++){
+//   for(int i = 0; i < NUMBER_OF_JOINTS; i++){
 //     qd[i] = q0[i];
 //   }
 //
@@ -99,7 +99,7 @@ void initQPosition(){
 //       uSet();
 //       plotQInMatlab();
 //       plotUInMatlab();
-//       for(int i = 0; i < NUMBEROFNODES; i++){
+//       for(int i = 0; i < NUMBER_OF_JOINTS; i++){
 //         if(abs(error[i]) > maxError) maxError = abs(error[i]);
 //       }
 //       #ifdef DEBUG_MODE
@@ -109,7 +109,7 @@ void initQPosition(){
 //     }
 //   }while(maxError * RADTODEG > INIT_Q_MAX_ERROR);
 //   // leave joints in that position -> zero control
-//   for(int i = 0; i < NUMBEROFNODES; i++){
+//   for(int i = 0; i < NUMBER_OF_JOINTS; i++){
 //     u[i] = 0;
 //   }
 //   uSet();
@@ -121,7 +121,7 @@ void initQPosition(){
 void setupHearbeat(){
   // configures CAN Hearbeat Protocol
   byte PROD_HB_TIME[8] = {0x22, 0x17, 0x10, 0x00, lowByte(HEARBEAT_TIME),highByte(HEARBEAT_TIME), 0x00, 0x00};
-  unsigned int numNodes = NUMBEROFNODES;
+  unsigned int numNodes = NUMBER_OF_JOINTS;
 
   /* TESTING PURPOSES*/
   #ifdef TWO_MOTOR_TEST
@@ -215,8 +215,8 @@ void setupVelocityMode(){
   byte MODE_VELOCITY[8] = {0x2F, 0x60, 0x60, 0x00, 0xFE, 0x00, 0x00, 0x00};
   byte ZERO_INITIAL_VELOCITY[8] = {0x23, 0x6B, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-  unsigned long maxProfVelocity[NUMBEROFNODES] = MAX_VELOCITY;
-  unsigned long maxAcceleration[NUMBEROFNODES] = MAX_ACCELERATION;
+  unsigned long maxProfVelocity[NUMBER_OF_JOINTS] = MAX_VELOCITY;
+  unsigned long maxAcceleration[NUMBER_OF_JOINTS] = MAX_ACCELERATION;
   byte* maxProfVelocBytes;
   byte* maxAcceleratBytes;
 
@@ -241,7 +241,7 @@ void setupVelocityMode(){
 
 
 // void setInitialVals(){
-//   unsigned char nodesRemaining = NUMBEROFNODES;
+//   unsigned char nodesRemaining = NUMBER_OF_JOINTS;
 //   word CANID, nodeNum;
 //   long* auxPointer;
 //
@@ -268,7 +268,7 @@ void setupVelocityMode(){
 //       Serial.println("DEBUG: setInitialVals(): Sync object sucessfuly sent");
 //       #endif
 //     }
-//     else if( CANID > 0x180 + NODEID_OFFSET && CANID <= 0x180 + NUMBEROFNODES + NODEID_OFFSET){
+//     else if( CANID > 0x180 + NODEID_OFFSET && CANID <= 0x180 + NUMBER_OF_JOINTS + NODEID_OFFSET){
 //       // read TPDO1;
 //
 //       nodeNum = CANID - 0x180;
@@ -306,7 +306,7 @@ void setupVelocityMode(){
 //   //sets initial values of position(incremental encoder)
 //   byte READINCENCOD1[8] = {0x40, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00};
 //   long unsigned* auxPointer;
-//   unsigned int numNodes = NUMBEROFNODES;
+//   unsigned int numNodes = NUMBER_OF_JOINTS;
 //
 //   #ifdef TWO_MOTOR_TEST
 //   numNodes = 2;
