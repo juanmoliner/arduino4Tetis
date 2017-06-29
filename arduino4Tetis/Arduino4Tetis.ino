@@ -76,22 +76,15 @@ byte ONANDENABLE[8] = {0x2B, 0x40, 0x60, 0x00, 0x0F, 0x00, 0x00, 0x00};
 
 MCP_CAN CAN(SPI_CS_PIN);
 
-// enum ControlType2
-// {
-//   Setup,
-//   InitialPosition,
-//   JointControl,
-//   Joystick,
-//   Trajectory
-// };
-// ControlType2 controlType2;
-
- int controlType2 = 0;
- const int Setup = 0;
- const int InitialPosition = 1;
- const int JointControl = 2;
- const int Joystick = 3;
- const int Trajectory = 4;
+enum ControlType
+{
+  Setup,
+  InitialPosition,
+  JointControl,
+  Joystick,
+  Trajectory
+};
+ControlType controlType;
 
 
 void uSet(){
@@ -382,11 +375,11 @@ void checkHearbeat(){
   }
 }
 
-void updateControlType2(){
+void updateControlType(){
   // updates the control type to the one desired by user
   if(initialControl){
     // check user desired mode
-    controlType2 = Trajectory;
+    controlType = Trajectory;
   }
 }
 
@@ -428,31 +421,18 @@ void setup()
       qoffset[i] = 0.0 ;
     }
 
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-    controlType2 = Setup;
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-    controlType2 = InitialPosition;
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
 
     #ifdef TO_MATLAB
     initMatlab();
     #endif
 
     delay(500); //let al the SDOs be attended
+
+    controlType = Setup;
 }
 
 
 void loop(){
-
-    // Serial.println("DEBUG CONTROL TYPE:");
-    // Serial.println(controlType2);
-  // ControlType2 = Setup;
 
   if((millis() - tLastExec >= h)){
     tDelay = millis() - tLastExec - h;
@@ -466,43 +446,12 @@ void loop(){
     CANListener(); // get data from EPOS nodes in CAN bus
     updateTetisData(); // update tetis values (cij, cijk,..)
 
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-    controlType2 = Setup;
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
 
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-    controlType2 = InitialPosition;
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
+    updateControlType();
 
-    updateControlType2();
-
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-    controlType2 = Setup;
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-    controlType2 = InitialPosition;
-    Serial.println("DEBUG CONTROL TYPE:");
-    Serial.println(controlType2);
-
-    Serial.println("DEBUG CONTROL TYPES:");
-    Serial.println(Setup);
-    Serial.println(InitialPosition);
-    Serial.println(Trajectory);
-    Serial.println(JointControl);
-    Serial.println(Joystick);
-
-    delay(10000);
 
     // calculate control
-    switch (controlType2){
+    switch (controlType){
       case Setup:
         #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering setup");
@@ -514,7 +463,7 @@ void loop(){
           Serial.println(qoffset[i] * RADTODEG);
           // #endif
         }
-        controlType2 =  InitialPosition;
+        controlType =  InitialPosition;
         break;
       case InitialPosition:
         #ifdef DEBUG_MODE
