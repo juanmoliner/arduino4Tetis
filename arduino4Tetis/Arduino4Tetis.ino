@@ -48,7 +48,6 @@ float x[NUMBER_OF_JOINTS]; // actual position of the actuator (space of the actu
 
 float kj[NUMBER_OF_JOINTS] = KJ; // joint control proportional gain
 float q[NUMBER_OF_JOINTS]; // actual position[rad] of each joint(space of the joints)
-float qdot[NUMBER_OF_JOINTS]; // actual velocity [rad/s] of each joint(space of the joints)
 
 float u[NUMBER_OF_JOINTS]; // control variable angular velocity [rad/s]
 float ubar[NUMBER_OF_JOINTS]; // auxiliary control variable angular velocity [rad/s]
@@ -151,12 +150,22 @@ void uSet(){
     // set rpm to EPOS
     nodeNum = nodeIDMapping[jointNum - 1];
 
-    rpm = u[nodeNum - 1] * RADSTORPM * motorReduction[nodeNum - 1] * eposPolarity[nodeNum - 1];
+    rpm = u[jointNum - 1] * RADSTORPM * motorReduction[jointNum - 1] * eposPolarity[jointNum - 1];
     byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
     for(int i = 0; i < 4; i++){
       SETRPM[i + 4] = rpmBytes[i];
     }
     CAN.sendMsgBuf(0x600 + nodeNum,0,8,SETRPM);
+
+    #ifdef DEBUG_MODE
+    Serial.print("DEBUG: uSet(): message just sent : 0x");
+    Serial.print(0x600 + nodeNum,HEX);Serial.print(" ");
+    for(int i = 0; i<7; i++){
+      Serial.print("0x");Serial.print(SETRPM[i],HEX);Serial.print(" ");
+    }
+    Serial.println();
+    #endif
+
     // force to clear buffer
     do{
       // keep printing everything in the buffer until Receving SDO found
@@ -165,6 +174,123 @@ void uSet(){
   }
 }
 
+
+void readTPDO1(word CANID){
+  // reads TPDO1 and saves it to q
+    word nodeNum = CANID - 0x180;
+    word jointNum;
+    long posInQuadCounts;
+    long* auxPointer ;
+
+    // cutrez, tipo diccionario
+    for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+      if(nodeIDMapping[i] == nodeNum){
+        jointNum = i + 1;
+      }
+    }
+
+    auxPointer =  (long*) buf; //access last 4 bytes of TPDO data
+    posInQuadCounts = *auxPointer;
+
+    q[jointNum - 1] = (posInQuadCounts * QDTORAD * eposPolarity[jointNum - 1]
+                      / motorReduction[jointNum - 1]) - qoffset[jointNum - 1];
+
+    // Serial.print("DEBUGING(PLZ REMOVE) READTPDO1 nodeNum =  "); Serial.print(nodeNum);
+    // Serial.print(" jointNum =  "); Serial.print(jointNum);
+    // Serial.print(" q[jointNum - 1] * RADTODEG =  "); Serial.println(q[jointNum - 1] * RADTODEG);
+}
+
+void CANListener(){
+  word CANID;
+  bool nodesRead[NUMBER_OF_JOINTS];
+  bool allNodesRead = false;
+  unsigned int tLastSync;
+
+  for(int i = 0; i < NUMBER_OF_JOINTS; i++){ //set all nodes as unread
+    nodesRead[i] = false;
+  }
+
+  /* TESTING PURPOSES */
+  #ifdef TWO_MOTOR_TEST
+  for(int i = 2; i < NUMBER_OF_JOINTS; i++){
+    nodesRead[i] = true; // not necessary to read any node but first two
+    q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
+  }
+  #endif
+  #ifdef SIMU_MODE
+  nodesRemaining = 0;
+  for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+    nodesRead[i] = true;
+    q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
+  }
+  #endif
+  /* END OF TESTING PURPOSES */
+
+  CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
+  tLastSync = millis();
+
+  while(!allNodesRead){
+    // read buffer until all nodes have responded to the sync
+
+    if(millis() - tLastSync > PDO_READ_TIMEOUT){
+      for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+        nodesRead[i] = false;
+        }
+      Serial.println("DEBUG: CanListener(): PDO read timeout");
+      CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
+      tLastSync = millis();
+    }
+
+    if(CAN_MSGAVAIL == CAN.checkReceive()){
+      CAN.readMsgBuf(&len, buf);
+      CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
+
+      #ifdef DEBUG_MODE
+      Serial.print("DEBUG: CanListener(): 0x");Serial.print(CANID,HEX);Serial.print("\t");
+      // print the data
+      for(int i = 0; i<len; i++){
+        Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
+      }
+      Serial.println();
+      #endif
+
+      if(CANID == 0x80){
+        // Sync object received (we just sent it)
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: CANListener(): Sync object sucessfuly sent");
+        #endif
+      }
+      else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBER_OF_JOINTS + NODEID_OFFSET)){
+        // PDO1 received from some node
+        nodesRead[CANID - 0x180 - NODEID_OFFSET - 1] = true;
+        readTPDO1(CANID);
+      }
+      else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBER_OF_JOINTS + NODEID_OFFSET ) && (buf[0] == 0x60)){
+        // SDO receiving message arrived, confirmation of SDO write object succesfuly received by its intended node
+        }
+      else if ((CANID > 0x700 + NODEID_OFFSET) && (CANID <= 0x700 + NUMBER_OF_JOINTS + NODEID_OFFSET )){
+        // Hearbeat message received from some node
+        lastHeartbeat[(CANID - 0x700) - 1] = millis();
+      }
+      else{
+        // other message found, we print it
+        Serial.println("WARN: CANListener(): Unexpected message found :");
+        Serial.print("WARN: CANListener(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
+        for(int i = 0; i<len; i++){
+          Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
+        }
+        Serial.println();
+      }
+
+      allNodesRead = true;
+      for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+        if(nodesRead[i] == false){
+          allNodesRead = false;
+        }
+      }
+    }
+  } // while(!allNodesRead)
+}
 
 bool tetisCheckColision(){
   // Tetis specific function: checks if any joint is about to colide
@@ -214,134 +340,6 @@ bool tetisCheckJointLimits(){
     else return false;
 }
 
-void readTPDO1(word CANID){
-  // reads TPDO1 and saves it to q and qdot
-    word nodeNum = CANID - 0x180;
-    word jointNum;
-    float velInRpm;
-    long posInQuadCounts;
-    long* auxPointer ;
-
-    // cutrez, tipo diccionario
-    for(int i = 0; i < NUMBER_OF_JOINTS; i++){
-      if(nodeIDMapping[i] == nodeNum){
-        jointNum = i + 1;
-      }
-    }
-
-    // auxPointer = (long*) buf; //access first 4 bytes of TPDO data
-    // velInRpm = (float)(*auxPointer) / motorReduction[jointNum - 1];
-
-    // auxPointer =  (long*) (buf + 4); //access last 4 bytes of TPDO data
-    // posInQuadCounts = *auxPointer;
-
-    auxPointer =  (long*) buf; //access last 4 bytes of TPDO data
-    posInQuadCounts = *auxPointer;
-
-    // qdot[jointNum - 1] = velInRpm * RPMTORADS;
-    qdot[jointNum - 1] = u[jointNum - 1];
-
-    q[jointNum - 1] = (posInQuadCounts * QDTORAD * eposPolarity[jointNum - 1]
-                      / motorReduction[jointNum - 1]) - qoffset[jointNum - 1];
-
-    // Serial.print("DEBUGING(PLZ REMOVE) READTPDO1 nodeNum =  "); Serial.print(nodeNum);
-    // Serial.print(" jointNum =  "); Serial.print(jointNum);
-    // Serial.print(" q[jointNum - 1] * RADTODEG =  "); Serial.println(q[jointNum - 1] * RADTODEG);
-}
-
-void CANListener(){
-  word CANID;
-  bool nodesRead[NUMBER_OF_JOINTS];
-  bool allNodesRead = false;
-  unsigned int tLastSync;
-
-  for(int i = 0; i < NUMBER_OF_JOINTS; i++){ //set all nodes as unread
-    nodesRead[i] = false;
-  }
-
-  /* TESTING PURPOSES */
-  #ifdef TWO_MOTOR_TEST
-  for(int i = 2; i < NUMBER_OF_JOINTS; i++){
-    nodesRead[i] = true; // not necessary to read any node but first two
-    q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
-    qdot[i] = u[i];
-  }
-  #endif
-  #ifdef SIMU_MODE
-  nodesRemaining = 0;
-  for(int i = 0; i < NUMBER_OF_JOINTS; i++){
-    nodesRead[i] = true;
-    q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
-    qdot[i] = u[i];
-  }
-  #endif
-  /* END OF TESTING PURPOSES */
-
-  CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-  tLastSync = millis();
-
-  while(!allNodesRead){
-    // read buffer until all nodes have responded to the sync
-    // CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-
-    // if(millis() - tLastSync > PDO_READ_TIMEOUT){
-    //   CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-    //   tLastSync = millis();
-    // }
-
-    if(CAN_MSGAVAIL == CAN.checkReceive()){
-      CAN.readMsgBuf(&len, buf);
-      CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
-
-      /* TAKE OFF */
-      Serial.print("DEBUGGIN(PLZ RMV): CanListener(): 0x");Serial.print(CANID,HEX);Serial.print("\t");
-      // print the data
-      for(int i = 0; i<len; i++){
-        Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
-      }
-      Serial.println();
-      /* TAKE OFF */
-
-      if(CANID == 0x80){
-        // Sync object received (we just sent it)
-        #ifdef DEBUG_MODE
-        Serial.println("DEBUG: CANListener(): Sync object sucessfuly sent");
-        #endif
-      }
-      else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBER_OF_JOINTS + NODEID_OFFSET)){
-        // PDO1 received from some node
-        nodesRead[CANID - 0x180 - NODEID_OFFSET - 1] = true;
-        readTPDO1(CANID);
-      }
-      else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBER_OF_JOINTS + NODEID_OFFSET ) && (buf[0] == 0x60)){
-        // SDO receiving message arrived, confirmation of SDO write object succesfuly received by its intended node
-        }
-      else if ((CANID > 0x700 + NODEID_OFFSET) && (CANID <= 0x700 + NUMBER_OF_JOINTS + NODEID_OFFSET )){
-        // Hearbeat message received from some node
-        lastHeartbeat[(CANID - 0x700) - 1] = millis();
-      }
-      else{
-        // other message found, we print it
-        Serial.println("WARN: CANListener(): Unexpected message found :");
-        Serial.print("WARN: CANListener(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
-        for(int i = 0; i<len; i++){
-          Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
-        }
-        Serial.println();
-      }
-
-      allNodesRead = true;
-      for(int i = 0; i < NUMBER_OF_JOINTS; i++){
-        if(nodesRead[i] == false){
-          allNodesRead = false;
-        }
-      }
-    }
-  } // while(!allNodesRead)
-
-  Serial.println("DEBUGGIN: ALL NODES CORRECTLY READ");
-}
-
 
 void checkHearbeat(){
   // checks if hearbeat time has elapsed for any node and, if so, raises an error
@@ -377,6 +375,9 @@ void updateControlType(){
   // updates the control type to the one desired by user
   if(initialControl){
     // check user desired mode
+    Serial.println("*******ENDDDD*******");
+    while(1){
+    }
     controlType = Trajectory;
   }
 }

@@ -38,16 +38,16 @@
 #define INIT_Q_MAX_ERROR 0.3 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
 #define Q_INIT_POSITION {0.0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
+// #define Q_INIT_POSITION {0.0, -PI/4, 0.0, 0.0} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
 
 /* ACTUATOR SYSTEM CONFIG */
 #define NUMBER_OF_JOINTS 4
 #define NODEID_OFFSET 5 // Offset of nodes ID(1st should be ID=1)
-// #define NODEID_MAPPING {9,8,7,6}
-#define NODEID_MAPPING {6,7,8,9}
+#define NODEID_MAPPING {9,8,7,6}
 #define MOTOR_REDUCTION {100, 100, 100, 100} // 21:1
 #define ENCODER_CPR 2000 // incremental enconder counts per revolution (assumes all system encodes have same cpr)
-#define EPOS_POLARITY {1,-1,1,1} // 1 if positive theta is hourly
+#define EPOS_POLARITY {-1,1,-1,-1} // 1 if positive theta is hourly
 #define MAX_VELOCITY {620, 630, 625, 625} // velocity limit move [rpm @ motor]
 #define MAX_ACCELERATION {600, 750, 650, 650} // max acceleration [rpm/s @ motor]
 #define JOINTS_INIT_VALS {0.0, -PI/2, 0.0, 0.0}
@@ -112,7 +112,6 @@ extern float qd[NUMBER_OF_JOINTS]; // desired position[rad] for each joint (spac
 extern float x[NUMBER_OF_JOINTS]; // actual position of the actuator (space of the actuator)
 extern float kj[NUMBER_OF_JOINTS]; // joint control proportional gain
 extern float q[NUMBER_OF_JOINTS]; // actual position[rad] of each joint(space of the joints)
-extern float qdot[NUMBER_OF_JOINTS]; // actual velocity [rad/s] of each joint(space of the joints)
 
 extern float u[NUMBER_OF_JOINTS]; // control variable angular velocity [rad/s]
 extern float ubar[NUMBER_OF_JOINTS]; // auxiliary control variable angular velocity [rad/s]
