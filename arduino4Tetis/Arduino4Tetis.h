@@ -38,7 +38,6 @@
 #define INIT_Q_MAX_ERROR 0.3 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
 #define Q_INIT_POSITION {0.0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
-// #define Q_INIT_POSITION {0.0, -PI/4, 0.0, 0.0} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
 
 /* ACTUATOR SYSTEM CONFIG */
@@ -73,6 +72,10 @@
 #define TPDO1_IN_TIME 1000 // inhibit time =  TPDO1_IN_TIME * 10exp(-6)s
 #define TPDO1_TR_TYPE 1 // 255: async, 253: async on RTR only, 1:sync
 #define PDO_READ_TIMEOUT 5 // time(ms) to send new SYNC if all PDOS nto received
+
+/* RECEIVE PDO 1 SETTINGS */
+#define RPDO1_IN_TIME 1000 // inhibit time =  TPDO1_IN_TIME * 10exp(-6)s
+#define RPDO1_TR_TYPE 255 // 255: async, 1:sync
 
 /* ERROR CONTROL PROTOCOL SETTINGS */
 #define HEARBEAT_TIME 1000 // Hearbeat protocol producer time (multiple of 1ms)

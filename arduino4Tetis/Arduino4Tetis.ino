@@ -93,10 +93,7 @@ void uSet(){
   // writes to EPOS the values stored in control variable u (via SDO)
   unsigned int numJoints = NUMBER_OF_JOINTS;
   unsigned int nodeNum;
-
-  byte SETRPM[8] = {0x23, 0x6B, 0x20, 0x00,0,0,0,0};
   long rpm;
-
   /* TESTING PURPOSES*/
   #ifdef TWO_MOTOR_TEST
   numJoints = 2;
@@ -149,28 +146,8 @@ void uSet(){
   for(unsigned int jointNum = 1 ; jointNum <= numJoints ; jointNum++){
     // set rpm to EPOS
     nodeNum = nodeIDMapping[jointNum - 1];
-
     rpm = u[jointNum - 1] * RADSTORPM * motorReduction[jointNum - 1] * eposPolarity[jointNum - 1];
-    byte* rpmBytes = (byte*) &rpm; // to be able to acces value byte by byte
-    for(int i = 0; i < 4; i++){
-      SETRPM[i + 4] = rpmBytes[i];
-    }
-    CAN.sendMsgBuf(0x600 + nodeNum,0,8,SETRPM);
-
-    #ifdef DEBUG_MODE
-    Serial.print("DEBUG: uSet(): message just sent : 0x");
-    Serial.print(0x600 + nodeNum,HEX);Serial.print(" ");
-    for(int i = 0; i<7; i++){
-      Serial.print("0x");Serial.print(SETRPM[i],HEX);Serial.print(" ");
-    }
-    Serial.println();
-    #endif
-
-    // force to clear buffer
-    do{
-      // keep printing everything in the buffer until Receving SDO found
-      printMsgCheck();
-    }while(COBId != 0x580 + nodeNum && buf[0] != 60);
+    CAN.sendMsgBuf(0x200 + nodeNum,0,4,(byte*)&rpm);
   }
 }
 
@@ -236,7 +213,7 @@ void CANListener(){
       for(int i = 0; i < NUMBER_OF_JOINTS; i++){
         nodesRead[i] = false;
         }
-      Serial.println("DEBUG: CanListener(): PDO read timeout");
+      Serial.println("WARN: CanListener(): PDO read timeout");
       CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
       tLastSync = millis();
     }
@@ -375,9 +352,6 @@ void updateControlType(){
   // updates the control type to the one desired by user
   if(initialControl){
     // check user desired mode
-    Serial.println("*******ENDDDD*******");
-    while(1){
-    }
     controlType = Trajectory;
   }
 }

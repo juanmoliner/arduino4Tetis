@@ -5,6 +5,7 @@
 #include <Arduino.h>
 
 void setupPDOs();
+void setupRPDO1();
 void setupTPDO1();
 void setupHearbeat();
 void setupVelocityMode();

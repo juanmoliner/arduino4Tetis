@@ -98,13 +98,35 @@ void setupPDOs(){
   toAllNodesSDO(RPDO4_NUM_0,0);
 
   setupTPDO1();
+  setupRPDO1();
 
 }
 
 
+void setupRPDO1(){
+    // Setup for RPDO1 receiving Velocity Actual
+    byte RPDO1_INHIBIT_TIME[8] = {0x2B, 0x00, 0x18, 0x03, lowByte(RPDO1_IN_TIME), highByte(RPDO1_IN_TIME), 0x00, 0x00};
+    byte RPDO1_TRANSMTYPE[8] = {0x2F, 0x00, 0x14, 0x02, RPDO1_TR_TYPE, 0x00, 0x00, 0x00};
+    byte RPDO1_NUM_0[8] = {0x2F,0x00, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00};
+    byte RPDO1_NUM_1[8] = {0x2F,0x00, 0x16, 0x00, 0x01, 0x00, 0x00, 0x00};
+    byte RPDO1_1MPO_VEL_MOD_SET_VAL[8] = {0x23, 0x00, 0x16, 0x01, 0x20, 0x00, 0x6B, 0x20};
+    #ifdef DEBUG_MODE
+    Serial.println("DEBUG: setupRPDO1(): Setting up RPDO1");
+    #endif
+
+    // set TPDO1 inhibit time
+    toAllNodesSDO(RPDO1_INHIBIT_TIME,0);
+    // set TPDO1 transmission type
+    toAllNodesSDO(RPDO1_TRANSMTYPE,0);
+    // Set number of mapped objects to 0 to be able to change mapping
+    toAllNodesSDO(RPDO1_NUM_0,0);
+    // set mapped objects and number of mapped objects
+    toAllNodesSDO(RPDO1_1MPO_VEL_MOD_SET_VAL,0);
+    toAllNodesSDO(RPDO1_NUM_1,0);
+}
+
 void setupTPDO1(){
     // Setup for PDO1 sending Velocity Actual and Position Actual Objects
-    byte RESTORE_DEF_PDO_COBID[8] = {0x23, 0x11, 0x10, 0x05, 0x6C, 0x6F, 0x61, 0x64};
     byte TPDO1_INHIBIT_TIME[8] = {0x2B, 0x00, 0x18, 0x03, lowByte(TPDO1_IN_TIME), highByte(TPDO1_IN_TIME), 0x00, 0x00};
     byte TPDO1_TRANSMTYPE[8] = {0x2F, 0x00, 0x18, 0x02, TPDO1_TR_TYPE, 0x00, 0x00, 0x00};
     byte TPDO1_NUM_0[8] = {0x2F,0x00, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -114,8 +136,7 @@ void setupTPDO1(){
     Serial.println("DEBUG: setupTPDO1(): Setting up TPDO1");
     #endif
 
-    // recalculate al COB-ID of the PDO's based on their DIP-Switch
-    toAllNodesSDO(RESTORE_DEF_PDO_COBID,0);
+
     // set TPDO1 inhibit time
     toAllNodesSDO(TPDO1_INHIBIT_TIME,0);
     // set TPDO1 transmission type
