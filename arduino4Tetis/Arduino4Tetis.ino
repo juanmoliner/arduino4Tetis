@@ -157,7 +157,11 @@ void uSet(){
       SETRPM[i + 4] = rpmBytes[i];
     }
     CAN.sendMsgBuf(0x600 + nodeNum,0,8,SETRPM);
-    printMsgCheck();
+    // force to clear buffer
+    do{
+      // keep printing everything in the buffer until Receving SDO found
+      printMsgCheck();
+    }while(COBId != 0x580 + nodeNum && buf[0] != 60);
   }
 }
 
@@ -225,13 +229,18 @@ void readTPDO1(word CANID){
       }
     }
 
-    auxPointer = (long*) buf; //access first 4 bytes of TPDO data
-    velInRpm = (float)(*auxPointer) / motorReduction[jointNum - 1];
+    // auxPointer = (long*) buf; //access first 4 bytes of TPDO data
+    // velInRpm = (float)(*auxPointer) / motorReduction[jointNum - 1];
 
-    auxPointer =  (long*) (buf + 4); //access last 4 bytes of TPDO data
+    // auxPointer =  (long*) (buf + 4); //access last 4 bytes of TPDO data
+    // posInQuadCounts = *auxPointer;
+
+    auxPointer =  (long*) buf; //access last 4 bytes of TPDO data
     posInQuadCounts = *auxPointer;
 
-    qdot[jointNum - 1] = velInRpm * RPMTORADS;
+    // qdot[jointNum - 1] = velInRpm * RPMTORADS;
+    qdot[jointNum - 1] = u[jointNum - 1];
+
     q[jointNum - 1] = (posInQuadCounts * QDTORAD * eposPolarity[jointNum - 1]
                       / motorReduction[jointNum - 1]) - qoffset[jointNum - 1];
 
@@ -252,7 +261,6 @@ void CANListener(){
 
   /* TESTING PURPOSES */
   #ifdef TWO_MOTOR_TEST
-
   for(int i = 2; i < NUMBER_OF_JOINTS; i++){
     nodesRead[i] = true; // not necessary to read any node but first two
     q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
@@ -272,62 +280,64 @@ void CANListener(){
   CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
   tLastSync = millis();
 
-  while( !allNodesRead){
+  while(!allNodesRead){
     // read buffer until all nodes have responded to the sync
     // CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-    
-    if(millis() - tLastSync > PDO_READ_TIMEOUT){
-      CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
-      tLastSync = millis();
-    }
 
-    CAN.readMsgBuf(&len, buf);
-    CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
+    // if(millis() - tLastSync > PDO_READ_TIMEOUT){
+    //   CAN.sendMsgBuf(0x80,0,2,SYNC); // sends Sync object
+    //   tLastSync = millis();
+    // }
 
-    /* TAKE OFF */
-    Serial.print("DEBUGGIN(PLZ RMV): CanListener(): 0x");Serial.print(CANID,HEX);Serial.print("\t");
-    // print the data
-    for(int i = 0; i<len; i++){
-      Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
-    }
-    Serial.println();
-    /* TAKE OFF */
+    if(CAN_MSGAVAIL == CAN.checkReceive()){
+      CAN.readMsgBuf(&len, buf);
+      CANID = CAN.getCanId();  // read data,  len: data length, buf: data buf
 
-    if(CANID == 0x80){
-      // Sync object received (we just sent it)
-      #ifdef DEBUG_MODE
-      Serial.println("DEBUG: CANListener(): Sync object sucessfuly sent");
-      #endif
-    }
-    else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBER_OF_JOINTS + NODEID_OFFSET)){
-      // PDO1 received from some node
-      nodesRead[CANID - 0x180 - NODEID_OFFSET - 1] = true;
-      readTPDO1(CANID);
-    }
-    else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBER_OF_JOINTS + NODEID_OFFSET ) && (buf[0] == 0x60)){
-      // SDO receiving message arrived, confirmation of SDO write object succesfuly received by its intended node
-      }
-    else if ((CANID > 0x700 + NODEID_OFFSET) && (CANID <= 0x700 + NUMBER_OF_JOINTS + NODEID_OFFSET )){
-      // Hearbeat message received from some node
-      lastHeartbeat[(CANID - 0x700) - 1] = millis();
-    }
-    else{
-      // other message found, we print it
-      Serial.println("WARN: CANListener(): Unexpected message found :");
-      Serial.print("WARN: CANListener(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
+      /* TAKE OFF */
+      Serial.print("DEBUGGIN(PLZ RMV): CanListener(): 0x");Serial.print(CANID,HEX);Serial.print("\t");
+      // print the data
       for(int i = 0; i<len; i++){
         Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
       }
       Serial.println();
-    }
+      /* TAKE OFF */
 
-    allNodesRead = true;
-    for(int i = 0; i < NUMBER_OF_JOINTS; i++){
-      if(nodesRead[i] == false){
-        allNodesRead = false;
+      if(CANID == 0x80){
+        // Sync object received (we just sent it)
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: CANListener(): Sync object sucessfuly sent");
+        #endif
+      }
+      else if ((CANID > 0x180 + NODEID_OFFSET) && (CANID <= 0x180 + NUMBER_OF_JOINTS + NODEID_OFFSET)){
+        // PDO1 received from some node
+        nodesRead[CANID - 0x180 - NODEID_OFFSET - 1] = true;
+        readTPDO1(CANID);
+      }
+      else if ((CANID > 0x580 + NODEID_OFFSET) && (CANID <= 0x580 + NUMBER_OF_JOINTS + NODEID_OFFSET ) && (buf[0] == 0x60)){
+        // SDO receiving message arrived, confirmation of SDO write object succesfuly received by its intended node
+        }
+      else if ((CANID > 0x700 + NODEID_OFFSET) && (CANID <= 0x700 + NUMBER_OF_JOINTS + NODEID_OFFSET )){
+        // Hearbeat message received from some node
+        lastHeartbeat[(CANID - 0x700) - 1] = millis();
+      }
+      else{
+        // other message found, we print it
+        Serial.println("WARN: CANListener(): Unexpected message found :");
+        Serial.print("WARN: CANListener(): 0x");Serial.print(CAN.getCanId(),HEX);Serial.print("\t");
+        for(int i = 0; i<len; i++){
+          Serial.print("0x");Serial.print(buf[i],HEX);Serial.print("\t");
+        }
+        Serial.println();
+      }
+
+      allNodesRead = true;
+      for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+        if(nodesRead[i] == false){
+          allNodesRead = false;
+        }
       }
     }
-  }
+  } // while(!allNodesRead)
 
   Serial.println("DEBUGGIN: ALL NODES CORRECTLY READ");
 }

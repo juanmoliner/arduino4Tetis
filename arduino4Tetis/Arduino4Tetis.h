@@ -43,7 +43,8 @@
 /* ACTUATOR SYSTEM CONFIG */
 #define NUMBER_OF_JOINTS 4
 #define NODEID_OFFSET 5 // Offset of nodes ID(1st should be ID=1)
-#define NODEID_MAPPING {9,8,7,6}
+// #define NODEID_MAPPING {9,8,7,6}
+#define NODEID_MAPPING {6,7,8,9}
 #define MOTOR_REDUCTION {100, 100, 100, 100} // 21:1
 #define ENCODER_CPR 2000 // incremental enconder counts per revolution (assumes all system encodes have same cpr)
 #define EPOS_POLARITY {1,-1,1,1} // 1 if positive theta is hourly
