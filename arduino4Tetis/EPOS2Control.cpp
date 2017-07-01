@@ -87,24 +87,32 @@ void joystickControl(){
   // Joystick position control (fixed pitch)
   // Control: Proportional + Feedforward (space of the actuator)
   shieldJoystick.read(); // reads desired position from shield's joystick
-  r_h[0] = shieldJoystick.getX(); // x joystick -> x robot
-  r_h[2] = shieldJoystick.getY(); // y joystic -> z robot
+  r_h[0] = x[0] + shieldJoystick.getX(); // x joystick -> x robot
+  r_h[2] = x[2] + shieldJoystick.getY(); // y joystic -> z robot
   // r_h[2] = shieldJoystick.getZ();
-  r_h[1] = r_h[3] = 0.0;
+  r_h[1] = x[1];
+  r_h[3] = x[3];
 
-  #ifdef DEBUG_MODE
-  Serial.print("DEBUG: joystickControl(): r_h[0] = "); Serial.print(r_h[0]);
-  Serial.print(" r_h[1] = ");Serial.println(r_h[1]);
-  #endif
+  // #ifdef DEBUG_MODE
+  Serial.print("DEBUG: joystickControl(): (x)r_h[0] = "); Serial.print(r_h[0]);
+  Serial.print(" (y)r_h[2] = ");Serial.println(r_h[2]);
+  // #endif
 
   // First order filter:
   // xd(h) = (1 - GAMMA * h) * xd(h-1) + GAMMA * h * r(h-1)
   // xd_dot(h) = - GAMMA * xd(h) + GAMMA * r(h)
-  for(int i = 0; i < NUMBER_OF_JOINTS; i++){
-    xd_h[i] = (1 - GAMMA * h / 1000.0) * xd_h_1[i] + GAMMA * h / 1000.0 * r_h_1[i];
-    xddot_h[i] = - GAMMA * xd_h[i] + GAMMA * r_h[i];
-    r_h_1[i] = r_h[i]; // saves r(h) to r(h-1) for next iteration
-    xd_h_1[i] = xd_h[i];
+  // for(int i = 0; i < NUMBER_OF_JOINTS; i++){
+  for(int i = 0; i < 4; i++){
+    // xd_h[i] = (1 - GAMMA * h / 1000.0) * xd_h[i] + GAMMA * h / 1000.0 * r_h[i];
+    // xddot_h[i] = - GAMMA * xd_h[i] + GAMMA * r_h[i];
+
+    xd_h[i] = (GAMMA * h * 0.001 * r_h[i] + xd_h[i]) / (1 + GAMMA * h * 0.001);
+    xddot_h[i] = GAMMA * (r_h[i] - xd_h[i]);
+
+    // xddot_h[i] = - GAMMA * xd_h[i] + GAMMA * r_h[i];
+    // xd_h[i] = (1 - GAMMA * h / 1000.0) * xd_h[i] + GAMMA * h / 1000.0 * r_h[i];
+    // r_h_1[i] = r_h[i]; // saves r(h) to r(h-1) for next iteration
+    // xd_h_1[i] = xd_h[i];
   }
   proportionalFF();
 }

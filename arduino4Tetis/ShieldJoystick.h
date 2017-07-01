@@ -17,9 +17,9 @@ class Joystick
     // x/y/z == 1 -> Right/Up/ NOT POSSIBLE
     // x/y/z == -1 -> Left/Down/Click
     // x/y/z == 0 -> Not pressed
-    char x;
-    char y;
-    char z;
+    int x;
+    int y;
+    int z;
     // proportional(Kacc) to the time the button has been continuosly pressed
     long unsigned xAcc;
     long unsigned yAcc;
@@ -35,9 +35,9 @@ class Joystick
 
   public:
     void read();
-    char getX(){return x;}
-    char getY(){return y;}
-    char getZ(){return z;}
+    int getX(){return x;}
+    int getY(){return y;}
+    int getZ(){return z;}
     long getXacc(){ return xAcc;}
     long getYacc(){ return yAcc;}
     long getZacc(){ return zAcc;}

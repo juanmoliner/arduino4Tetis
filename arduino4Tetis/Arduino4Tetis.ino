@@ -195,9 +195,9 @@ void CANListener(){
   }
   #endif
   #ifdef SIMU_MODE
-  nodesRemaining = 0;
   for(int i = 0; i < NUMBER_OF_JOINTS; i++){
     nodesRead[i] = true;
+    allNodesRead = true;
     q[i] = q[i] + h * 0.001 * u[i]; // h[ms] assume EPOS respond as perfect integrator
   }
   #endif
@@ -331,12 +331,12 @@ void checkHearbeat(){
   #endif
   /* END OF TESTING PURPOSES*/
 
-  for(unsigned int jointNum = 1; jointNum < numJoints; jointNum++){
+  for(unsigned int jointNum = 1; jointNum <= numJoints; jointNum++){
     nodeNum = nodeIDMapping[jointNum - 1];
-    if(millis() - lastHeartbeat[jointNum] > HEARBEAT_TIME + HB_DELAY_ALWD){
+    if(millis() - lastHeartbeat[jointNum - 1] > HEARBEAT_TIME + HB_DELAY_ALWD){
       // a node has not sent hb message last cycle
       Serial.print("WARN: checkHearbeat(): Node "); Serial.print(nodeNum);
-      Serial.print(" has not responded in last "); Serial.print(millis() - lastHeartbeat[nodeNum - 1] - HEARBEAT_TIME);
+      Serial.print(" has not responded in last "); Serial.print(millis() - lastHeartbeat[jointNum - 1] - HEARBEAT_TIME);
       Serial.println(" ms");
     }
     #ifdef DEBUG_MODE
@@ -352,7 +352,7 @@ void updateControlType(){
   // updates the control type to the one desired by user
   if(initialControl){
     // check user desired mode
-    controlType = Trajectory;
+    controlType = Joystick;
   }
 }
 
@@ -394,6 +394,7 @@ void setup(){
     qoffset[i] = 0.0 ;
   }
   controlType = Setup;
+  // controlType = Joystick;
   tInitPlot = millis(); // zero time for Matlab plot
 
 }
@@ -450,9 +451,9 @@ void loop(){
         #endif
         break;
       case Joystick :
-        #ifdef DEBUG_MODE
+        // #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering joystick control");
-        #endif
+        // #endif
         updateDirectKinematics();
         joystickControl();
         #ifdef TO_MATLAB
