@@ -19,13 +19,13 @@
 #define MATLAB_PLOT_SAMPLE_T 60 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
 // #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
-// #undef DEBUG_MODE // take off warning
-#define DEBUG_MODE
-#define DEBUG_PREC 3 // number of decimals to show in debug mode
+#undef DEBUG_MODE // take off warning
+// #define DEBUG_MODE
+// #define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
 #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
@@ -35,6 +35,7 @@
 #define GAMMA 10 // gamma constant of first order filter in joystick control
 #define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain
 #define KP {1.0, 1.0, 1.0, 1.0} // actuator control proportional gain
+#define K_JOYSTICK  5 // joystick gain
 #define INIT_Q_MAX_ERROR 0.3 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
 #define Q_INIT_POSITION {0.0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
@@ -94,9 +95,6 @@ extern bool initialControl; // wether inital position control has already been m
 
 extern long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 
-extern float r_h[NUMBER_OF_JOINTS]; // position read at joystick at h
-extern float r_h_1[NUMBER_OF_JOINTS]; // position read at joystick at h-1
-
 extern unsigned int nodeIDMapping[NUMBER_OF_JOINTS]; // Node id correspondig to each joint
 
 extern char eposPolarity[NUMBER_OF_JOINTS]; // 1 if positive theta is hourly
@@ -105,10 +103,8 @@ extern float maxVelocity[NUMBER_OF_JOINTS]; // velocity limit move [rpm @ motor]
 extern float maxAcceleration[NUMBER_OF_JOINTS];// max acceleration [rpm/s @ motor]
 
 extern float kp[NUMBER_OF_JOINTS]; // actuator control proportional gain
-extern float xd_h[NUMBER_OF_JOINTS]; // desired position of the actuator at h(space of the joints)
-extern float xd_h_1[NUMBER_OF_JOINTS]; // desired position of the actuator at h-1(space of the joints)
-extern float xddot_h[NUMBER_OF_JOINTS]; // UNUSED???desired velocity of the actuator at h(space of the joints)
-extern float xddot_h_1[NUMBER_OF_JOINTS]; // desired velocity of the actuator at h-1(space of the joints)
+extern float xd[NUMBER_OF_JOINTS]; // desired position of the actuator at h(space of the joints)
+extern float xddot[NUMBER_OF_JOINTS]; // UNUSED???desired velocity of the actuator at h(space of the joints)
 
 extern float qd[NUMBER_OF_JOINTS]; // desired position[rad] for each joint (space of the joints)
 
@@ -125,7 +121,6 @@ extern float qinit[NUMBER_OF_JOINTS];  // initial angle of each joint. MAKE SURE
 
 extern float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
 extern float J0[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the base (joint 0)
-extern float J0_inv[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Inverse of jacobian at the base (joint 0)
 extern float JN[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the actuator (joint n)
 
 extern Joystick shieldJoystick;

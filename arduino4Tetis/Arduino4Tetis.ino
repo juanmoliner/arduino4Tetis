@@ -24,9 +24,6 @@ bool initialControl = false; // wether inital position control has already been 
 
 long unsigned tInitPlot; // time(ms) to set as zero in Matlab plot
 
-float r_h[NUMBER_OF_JOINTS]; // position read at joystick at h
-float r_h_1[NUMBER_OF_JOINTS]; // position read at joystick at h-1
-
 unsigned int nodeIDMapping[NUMBER_OF_JOINTS] = NODEID_MAPPING; // Node id correspondig to each joint
 
 char eposPolarity[NUMBER_OF_JOINTS] = EPOS_POLARITY; // 1 if positive theta is hourly
@@ -36,10 +33,8 @@ float maxAcceleration[NUMBER_OF_JOINTS] =  MAX_ACCELERATION; // max acceleration
 
 
 float kp[NUMBER_OF_JOINTS] = KP; // actuator control proportional gain
-float xd_h[NUMBER_OF_JOINTS]; // desired position of the actuator at h(space of the joints)
-float xd_h_1[NUMBER_OF_JOINTS]; // desired position of the actuator at h-1(space of the joints)
-float xddot_h[NUMBER_OF_JOINTS]; // UNUSED???desired velocity of the actuator at h(space of the joints)
-float xddot_h_1[NUMBER_OF_JOINTS]; // desired velocity of the actuator at h-1(space of the joints)
+float xd[NUMBER_OF_JOINTS]; // desired position of the actuator at h(space of the joints)
+float xddot[NUMBER_OF_JOINTS]; // UNUSED???desired velocity of the actuator at h(space of the joints)
 
 
 float qd[NUMBER_OF_JOINTS]; // desired position[rad] for each joint (space of the joints)
@@ -61,7 +56,6 @@ float qoffset[NUMBER_OF_JOINTS];
 
 float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
 float J0[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the base (joint 0)
-float J0_inv[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Inverse of jacobian at the base (joint 0)
 float JN[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the actuator (joint n)
 
 
@@ -83,7 +77,8 @@ enum ControlType
   Setup,
   InitialPosition,
   JointControl,
-  Joystick,
+  JoystickActuator,
+  JoystickBase,
   Trajectory
 };
 ControlType controlType;
@@ -352,7 +347,7 @@ void updateControlType(){
   // updates the control type to the one desired by user
   if(initialControl){
     // check user desired mode
-    controlType = Joystick;
+    controlType = JoystickBase;
   }
 }
 
@@ -394,7 +389,6 @@ void setup(){
     qoffset[i] = 0.0 ;
   }
   controlType = Setup;
-  // controlType = Joystick;
   tInitPlot = millis(); // zero time for Matlab plot
 
 }
@@ -450,12 +444,24 @@ void loop(){
         plotUInMatlab();
         #endif
         break;
-      case Joystick :
+      case JoystickBase :
         // #ifdef DEBUG_MODE
         Serial.println("DEBUG: loop(): entering joystick control");
         // #endif
         updateDirectKinematics();
-        joystickControl();
+        joystickBaseControl();
+        #ifdef TO_MATLAB
+        plotXInMatlab();
+        plotQInMatlab();
+        plotUInMatlab();
+        #endif
+        break;
+      case JoystickActuator :
+        // #ifdef DEBUG_MODE
+        Serial.println("DEBUG: loop(): entering joystick control");
+        // #endif
+        updateDirectKinematics();
+        joystickActuatorControl();
         #ifdef TO_MATLAB
         plotXInMatlab();
         plotQInMatlab();

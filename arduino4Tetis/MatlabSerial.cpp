@@ -6,7 +6,7 @@ void plotXInMatlab(){
     //actually not necessary since only used inside timed main loop
     Serial.print("ToMatlabX: ");
     for(int i = 0; i < NUMBER_OF_JOINTS; i++){
-      Serial.print(xd_h[i], MATLAB_PREC); Serial.print(" ");
+      Serial.print(xd[i], MATLAB_PREC); Serial.print(" ");
     }
     for(int i = 0; i < NUMBER_OF_JOINTS; i++){
       Serial.print(x[i], MATLAB_PREC); Serial.print(" ");

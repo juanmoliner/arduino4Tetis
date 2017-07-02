@@ -6,7 +6,8 @@
 
 void proportionalFF();
 void trajectoryControl();
-void joystickControl();
+void joystickBaseControl();
+void joystickActuatorControl();
 void jointPosControl();
 
 #endif
