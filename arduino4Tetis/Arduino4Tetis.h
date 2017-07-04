@@ -23,13 +23,13 @@
 #define MATLAB_PLOT_SAMPLE_T 60 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
 // #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
-#undef DEBUG_MODE // take off warning
-// #define DEBUG_MODE
-// #define DEBUG_PREC 3 // number of decimals to show in debug mode
+// #undef DEBUG_MODE // take off warning
+#define DEBUG_MODE
+#define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
 #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
@@ -152,6 +152,9 @@ enum ControlType
   JoystickBase,
   Trajectory
 };
+
+extern ControlType controlType;
+extern ControlType userControl;
 
 /* FUNCTION PROTOTYPES */
 bool tetisCheckColision();

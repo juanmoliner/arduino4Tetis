@@ -1,4 +1,5 @@
 #include "ShieldJoystick.h"
+#include "Arduino4Tetis.h"
 
 
 void setupShieldJoystick(){
@@ -62,66 +63,69 @@ void ShieldJoystick::read(){
 
 void  BluetoothJoystick :: read(){
   int joystickRead = 0;
-  if (Serial3.available() > 0) {
-   joystickRead = Serial3.read();
+  if(selectModeFlag){
+    BluetoothJoystick :: selectMode();
   }
-//  Serial.print("debug: joystickRead = "); Serial.println(joystickRead);
-  switch (joystickRead){
-    case 'a': // left
-      x = 1; y = z = 0 ; break;
-    case 'b': // right
-      x = -1; y = z = 0; break;
-    case 'c': // up
-      y = 1; x = z = 0; break;
-    case 'd': // down
-      y = -1; x = z = 0; break;
-    case 'g': // triangle
-      z = 1; x = y = 0; break;
-    case 'i': // circle
-      z = -1; x = y = 0; break;
-    case 'A': // select
-      BluetoothJoystick :: selectMode();
-      x = y = z = 0;
-      break;
-    case 'B': // start
-      userControl = InitialPosition;
-      #ifdef DEBUG_MODE
-      Serial.println("DEBUG: BluetoothJoystick :: read(): take to start position");
-      #endif
-      // take to start position
-      break;
-    case 'f': // square
-      x = y = z = 0; break;
+  else{
+    if (Serial3.available() > 0) {
+     joystickRead = Serial3.read();
+    }
+    switch (joystickRead){
+      case 'a': // left
+        x = 1; y = z = 0 ; break;
+      case 'b': // right
+        x = -1; y = z = 0; break;
+      case 'c': // up
+        y = 1; x = z = 0; break;
+      case 'd': // down
+        y = -1; x = z = 0; break;
+      case 'g': // triangle
+        z = 1; x = y = 0; break;
+      case 'i': // circle
+        z = -1; x = y = 0; break;
+      case 'f': // square
+        x = y = z = 0; break;
+      case 'A': // select
+        selectModeFlag = true;
+        x = y = z = 0;
+        break;
+      case 'B': // start
+        userControl = InitialPosition;
+        #ifdef DEBUG_MODE
+        Serial.println("DEBUG: BluetoothJoystick :: read(): take to start position");
+        #endif
+        break;
+    }
   }
-
 }
 
 void BluetoothJoystick :: selectMode(){
   int joystickRead = 0;
-  Serial.println("getting in");
-  while(!Serial3.available()) {
-    // keep reading until something written
+  #ifdef DEBUG_MODE
+  Serial.println("DEBUG: BluetoothJoystick :: selectMode(): entered");
+  #endif
+  if (Serial3.available() > 0) {
+   joystickRead = Serial3.read();
+   selectModeFlag = false;
   }
-  joystickRead = Serial3.read();
-
-  Serial.println("coming out");
   switch (joystickRead){
     case 'i': // circle
       #ifdef DEBUG_MODE
       Serial.println("DEBUG: BluetoothJoystick :: selectMode(): Joystick in actuator system control selected");
       #endif
-      
+      userControl = JoystickActuator;
       break;
     case 'f': // square
       #ifdef DEBUG_MODE
       Serial.println("DEBUG: BluetoothJoystick :: selectMode(): Joystick in base system control selected");
       #endif
+      userControl = JoystickBase;
       break;
     case 'g': // triangle
       #ifdef DEBUG_MODE
       Serial.println("DEBUG: BluetoothJoystick :: selectMode(): Trajectory mode selected");
       #endif
+      userControl = Trajectory;
       break;
-
   }
  }

@@ -48,6 +48,7 @@ class ShieldJoystick: public Joystick{
  };
 
 class BluetoothJoystick: public Joystick{
+  bool selectModeFlag = false;
   public:
     void read();
     void selectMode();
