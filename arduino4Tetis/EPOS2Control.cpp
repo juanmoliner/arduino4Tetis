@@ -99,12 +99,13 @@ void joystickBaseControl(){
       u[i] = 0;
     }
   }
-
-  shieldJoystick.read(); // reads desired position from shield's joystick
-  r[0] = K_JOYSTICK * shieldJoystick.getX(); // x joystick -> x robot
-  r[1] = K_JOYSTICK * 0.0;
-  r[2] = K_JOYSTICK * shieldJoystick.getY(); // y joystic -> z robot
-  r[3] = K_JOYSTICK * 0.0;
+  #ifndef BT_MODE
+  joystick.read(); // reads desired position from shield's joystick
+  #endif
+  r[0] = K_JOYSTICK * joystick.getX(); // x joystick -> x robot
+  r[1] = K_JOYSTICK * joystick.getZ(); // z joystick -> y robot
+  r[2] = K_JOYSTICK * joystick.getY(); // y joystic -> z robot
+  r[3] = 0.0;
 
   // u = JN^(-1) * r
   Matrix.Multiply((float *)J0_inv,(float *) r, NUMBER_OF_JOINTS, NUMBER_OF_JOINTS, 1, (float *)u);
@@ -126,11 +127,14 @@ void joystickActuatorControl(){
     }
   }
 
-  shieldJoystick.read(); // reads desired position from shield's joystick
-  r[0] = K_JOYSTICK * shieldJoystick.getX(); // x joystick -> x robot
-  r[1] = K_JOYSTICK * 0.0;
-  r[2] = K_JOYSTICK * shieldJoystick.getY(); // y joystic -> z robot
-  r[3] = K_JOYSTICK * 0.0;
+  #ifndef BT_MODE
+  joystick.read(); // reads desired position from shield's joystick
+  #endif
+  r[0] = K_JOYSTICK * joystick.getX(); // x joystick -> x robot
+  r[1] = K_JOYSTICK * joystick.getZ(); // z joystick -> y robot
+  r[2] = K_JOYSTICK * joystick.getY(); // y joystic -> z robot
+  r[3] = 0.0;
+
 
   // u = JN^(-1) * r
   Matrix.Multiply((float *)JN_inv,(float *) r, NUMBER_OF_JOINTS, NUMBER_OF_JOINTS, 1, (float *)u);

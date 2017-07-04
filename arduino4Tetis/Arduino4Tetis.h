@@ -13,13 +13,17 @@
 #define RADTODEG (180/PI) // grad/rad
 #define DEGTORAD (PI/180)
 
+/* BLUETOOTH */
+#define BT_MODE // wether bluetooth is used
+#define BT_BAUDRATE 57600
+
 /* MATLAB PLOTTING MODE*/
 #define TO_MATLAB // if defined sends data to be plotted to Matlab
 #define MATLAB_PREC 4 // number of decimals to send to Matlab
 #define MATLAB_PLOT_SAMPLE_T 60 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
 // #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
@@ -35,7 +39,7 @@
 #define GAMMA 10 // gamma constant of first order filter in joystick control
 #define KJ {1.0, 1.0, 1.0, 1.0} // joint control proportional gain
 #define KP {1.0, 1.0, 1.0, 1.0} // actuator control proportional gain
-#define K_JOYSTICK  5 // joystick gain
+#define K_JOYSTICK  50 // joystick gain
 #define INIT_Q_MAX_ERROR 0.3 // max error(qd-q)[grad] allowed in initial joint control out of singular
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
 #define Q_INIT_POSITION {0.0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
@@ -123,7 +127,11 @@ extern float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // 
 extern float J0[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the base (joint 0)
 extern float JN[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the actuator (joint n)
 
-extern Joystick shieldJoystick;
+#ifdef BT_MODE
+extern BluetoothJoystick joystick;
+#else
+extern ShieldJoystick joystick;
+#endif
 
 extern byte SYNC[2];
 extern byte OPERATIONAL[2];

@@ -59,7 +59,12 @@ float J0[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the base (joint 0)
 float JN[NUMBER_OF_JOINTS][NUMBER_OF_JOINTS]; // Jacobian at the actuator (joint n)
 
 
-Joystick shieldJoystick;
+
+#ifdef BT_MODE
+BluetoothJoystick joystick;
+#else
+ShieldJoystick joystick;
+#endif
 
 byte SYNC[2] = {0x00, 0x00};
 byte OPERATIONAL[2] = {0x01, 0};
@@ -346,13 +351,16 @@ void checkHearbeat(){
 void updateControlType(){
   // updates the control type to the one desired by user
   if(initialControl){
-    // check user desired mode
+    // check user desired mode`
     controlType = JoystickBase;
   }
 }
 
 void setup(){
   Serial.begin(USB_BAUDRATE); // init serial comunication (USB->Arduino)
+  #ifdef BT_MODE
+  Serial3.begin(BT_BAUDRATE);
+  #endif
   #if defined(DEBUG_MODE) || defined(TO_MATLAB)
   Serial.println("----------------- RESTART ------------------");
   #endif
@@ -401,7 +409,10 @@ void loop(){
       Serial.print("WARN: loop(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
     }
     tLastExec = millis();
-
+    
+    #ifdef BT_MODE
+    joystick.read();
+    #endif
     // checkHearbeat();
 
     CANListener(); // get data from EPOS nodes in CAN bus

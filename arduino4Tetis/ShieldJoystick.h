@@ -17,24 +17,22 @@ class Joystick
     // x/y/z == 1 -> Right/Up/ NOT POSSIBLE
     // x/y/z == -1 -> Left/Down/Click
     // x/y/z == 0 -> Not pressed
-    int x;
-    int y;
-    int z;
-    // proportional(Kacc) to the time the button has been continuosly pressed
-    long unsigned xAcc;
-    long unsigned yAcc;
-    long unsigned zAcc;
-    int Kacc = 1;
-    // millis started last click on each direction
-    long unsigned tInitX;
-    long unsigned tInitY;
-    long unsigned tInitZ;
-
-    long unsigned tLastRead = 0; // millis of last read
-    long unsigned readInterval = 50; // interval in between reads
+    protected:
+      int x;
+      int y;
+      int z;
+      // proportional(Kacc) to the time the button has been continuosly pressed
+      long unsigned xAcc;
+      long unsigned yAcc;
+      long unsigned zAcc;
+      int Kacc = 1;
+      // millis started last click on each direction
+      long unsigned tInitX;
+      long unsigned tInitY;
+      long unsigned tInitZ;
 
   public:
-    void read();
+    virtual void read() = 0;
     int getX(){return x;}
     int getY(){return y;}
     int getZ(){return z;}
@@ -44,6 +42,17 @@ class Joystick
 
 };
 
-extern  Joystick shieldJoystick;
+class ShieldJoystick: public Joystick{
+  public:
+  void read();
+ };
+
+class BluetoothJoystick: public Joystick{
+  public:
+    void read();
+    void selectMode();
+ };
+
+
 
 #endif // SHIELDJOYSTICK_H
