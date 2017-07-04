@@ -4,20 +4,19 @@
 
 void setupShieldJoystick(){
   // Setup for the Joystick in the Sparkfun CANBus shield
+  //Initialize analog pins as inputs
+  pinMode(UP,INPUT);
+  pinMode(DOWN,INPUT);
+  pinMode(LEFT,INPUT);
+  pinMode(RIGHT,INPUT);
+  pinMode(CLICK,INPUT);
 
-    //Initialize analog pins as inputs
-    pinMode(UP,INPUT);
-    pinMode(DOWN,INPUT);
-    pinMode(LEFT,INPUT);
-    pinMode(RIGHT,INPUT);
-    pinMode(CLICK,INPUT);
-
-    //Pull analog pins high to enable reading of joystick movements
-    digitalWrite(UP, HIGH);
-    digitalWrite(DOWN, HIGH);
-    digitalWrite(LEFT, HIGH);
-    digitalWrite(RIGHT, HIGH);
-    digitalWrite(CLICK, HIGH);
+  //Pull analog pins high to enable reading of joystick movements
+  digitalWrite(UP, HIGH);
+  digitalWrite(DOWN, HIGH);
+  digitalWrite(LEFT, HIGH);
+  digitalWrite(RIGHT, HIGH);
+  digitalWrite(CLICK, HIGH);
 }
 
 void ShieldJoystick::read(){

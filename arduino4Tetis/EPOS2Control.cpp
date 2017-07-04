@@ -1,7 +1,7 @@
 #include "EPOS2Control.h"
 #include "Arduino4Tetis.h"
 #include "TetisKinematics.h"
-#include <MatrixMath.h>
+#include "MatrixMath.h"
 #include <math.h>
 
 void proportionalFF(){

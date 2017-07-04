@@ -23,16 +23,16 @@
 #define MATLAB_PLOT_SAMPLE_T 60 //Matlab plotting sample time(ms)
 
 /*  TEST MODE */
-// #define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
+#define SIMU_MODE // simulation mode (overrides TWO_MOTOR_TEST)
 // #define TWO_MOTOR_TEST // 2 motors simulated + 2 real
 
 /* DEBUG MODE */
-// #undef DEBUG_MODE // take off warning
-#define DEBUG_MODE
-#define DEBUG_PREC 3 // number of decimals to show in debug mode
+#undef DEBUG_MODE // take off warning
+// #define DEBUG_MODE
+// #define DEBUG_PREC 3 // number of decimals to show in debug mode
 
 /* CONTROL PARAMETERS*/
-#define FORGET_JLMITS_COLIS // define to take of joint and colision limits
+// #define FORGET_JLMITS_COLIS // define to take of joint and colision limits
 #define FORGET_SATURATION // define to take off saturation limits
 #define SAMP_TIME 40 // Sampling time (ms) for the control loops
 #define PERMT_DELAY 0 // Acceptable delay (ms) for each loop
@@ -44,6 +44,7 @@
 #define INIT_X_MAX_ERROR  1 // max error(xd-x)[mm or rad] allowed in initial pos control
 #define Q_INIT_POSITION {0.0, -PI/4, PI/2, -PI/4} // initial pos[rad] joints in initial joint control (space of the joints)
 #define X_INIT_POSITION {550, 57, -100, 0}  // initial pos[mm] actuator if initSimuPosition() used (space of the actuator)
+#define SING_MAT_LIMIT 0.8 // limit in GuassJordan pivot inversion for close to singular mat
 
 /* ACTUATOR SYSTEM CONFIG */
 #define NUMBER_OF_JOINTS 4
@@ -55,7 +56,7 @@
 #define MAX_VELOCITY {620, 630, 625, 625} // velocity limit move [rpm @ motor]
 #define MAX_ACCELERATION {600, 750, 650, 650} // max acceleration [rpm/s @ motor]
 #define JOINTS_INIT_VALS {0.0, -PI/2, 0.0, 0.0}
-#define J_LIMIT_OVP_ALLWD 0.1 * DEGTORAD // allowed overpass of joint limit [rad]
+// #define J_LIMIT_OVP_ALLWD 0.1 * DEGTORAD // allowed overpass of joint limit [rad]
 
 
 /* ARDUINO BOARD CONFIG */
