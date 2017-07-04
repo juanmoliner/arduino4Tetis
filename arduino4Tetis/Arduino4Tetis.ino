@@ -77,16 +77,17 @@ byte ONANDENABLE[8] = {0x2B, 0x40, 0x60, 0x00, 0x0F, 0x00, 0x00, 0x00};
 
 MCP_CAN CAN(SPI_CS_PIN);
 
-enum ControlType
-{
-  Setup,
-  InitialPosition,
-  JointControl,
-  JoystickActuator,
-  JoystickBase,
-  Trajectory
-};
+// enum ControlType
+// {
+//   Setup,
+//   InitialPosition,
+//   JointControl,
+//   JoystickActuator,
+//   JoystickBase,
+//   Trajectory
+// };
 ControlType controlType;
+ControlType userControl;
 
 
 void uSet(){
@@ -352,7 +353,7 @@ void updateControlType(){
   // updates the control type to the one desired by user
   if(initialControl){
     // check user desired mode`
-    controlType = JoystickBase;
+    controlType = userControl;
   }
 }
 
@@ -409,7 +410,7 @@ void loop(){
       Serial.print("WARN: loop(): Iteration delayed by: "); Serial.print(tDelay);Serial.println(" ms");
     }
     tLastExec = millis();
-    
+
     #ifdef BT_MODE
     joystick.read();
     #endif

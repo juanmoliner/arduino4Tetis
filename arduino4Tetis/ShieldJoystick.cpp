@@ -84,7 +84,10 @@ void  BluetoothJoystick :: read(){
       x = y = z = 0;
       break;
     case 'B': // start
-      x = y = z = 0;
+      userControl = InitialPosition;
+      #ifdef DEBUG_MODE
+      Serial.println("DEBUG: BluetoothJoystick :: read(): take to start position");
+      #endif
       // take to start position
       break;
     case 'f': // square
@@ -105,17 +108,18 @@ void BluetoothJoystick :: selectMode(){
   switch (joystickRead){
     case 'i': // circle
       #ifdef DEBUG_MODE
-      Serial.println("Joystick in actuator system control selected");
+      Serial.println("DEBUG: BluetoothJoystick :: selectMode(): Joystick in actuator system control selected");
       #endif
+      
       break;
     case 'f': // square
       #ifdef DEBUG_MODE
-      Serial.println("Joystick in base system control selected");
+      Serial.println("DEBUG: BluetoothJoystick :: selectMode(): Joystick in base system control selected");
       #endif
       break;
     case 'g': // triangle
       #ifdef DEBUG_MODE
-      Serial.println("Trajectory mode selected");
+      Serial.println("DEBUG: BluetoothJoystick :: selectMode(): Trajectory mode selected");
       #endif
       break;
 

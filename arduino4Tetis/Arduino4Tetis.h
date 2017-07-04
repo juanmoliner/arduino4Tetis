@@ -143,6 +143,16 @@ extern byte ONANDENABLE[8];
 
 extern MCP_CAN CAN;    // Set CS pin
 
+enum ControlType
+{
+  Setup,
+  InitialPosition,
+  JointControl,
+  JoystickActuator,
+  JoystickBase,
+  Trajectory
+};
+
 /* FUNCTION PROTOTYPES */
 bool tetisCheckColision();
 bool tetisCheckJointLimits();
