@@ -2,39 +2,41 @@
 #include "TetisKinematics.h"
 
 
-void updateTetisData(){
-    c1 = cos(q[0]);
-    s1 = sin(q[0]);
+void Tetis :: updateDHData(){
 
-    c2 = cos(q[1]);
-    s2 = sin(q[1]);
+    c1 = cos(systemJoints[0] -> q);
+    s1 = sin(systemJoints[0] -> q);
 
-    c3 = cos(q[2]);
-    s3 = sin(q[2]);
+    c2 = cos(systemJoints[1] -> q);
+    s2 = sin(systemJoints[1] -> q);
 
-    c4 = cos(q[3]);
-    s4 = sin(q[3]);
+    c3 = cos(systemJoints[2] -> q);
+    s3 = sin(systemJoints[2] -> q);
 
-    c23 = cos(q[1]+q[2]);
-    s23 = sin(q[1]+q[2]);
+    c4 = cos(systemJoints[3] -> q);
+    s4 = sin(systemJoints[3] -> q);
 
-    c34 = cos(q[2]+q[3]);
-    s34 = sin(q[2]+q[3]);
+    c23 = cos(systemJoints[1] -> q + systemJoints[2] -> q);
+    s23 = sin(systemJoints[1] -> q + systemJoints[2] -> q);
 
-    c234 = cos(q[1]+q[2]+q[3]);
-    s234 = sin(q[1]+q[2]+q[3]);
+    c34 = cos(systemJoints[2] -> q + systemJoints[3] -> q);
+    s34 = sin(systemJoints[2] -> q + systemJoints[3] -> q);
+
+    c234 = cos(systemJoints[1] -> q + systemJoints[2] -> q + systemJoints[3] -> q);
+    s234 = sin(systemJoints[1] -> q + systemJoints[2] -> q + systemJoints[3] -> q);
 }
 
-void updateDirectKinematics(){
+void  Tetis :: updateDirectKinematics(){
     // Forward kinematics p = k(theta)
+    updateDHData();
     x[0] = -M5*s1+E4*c23*c1+E3*c1*c2+E5*c234*c1;
     x[1] =  M5*c1+E4*c23*s1+E3*c2*s1+E5*c234*s1;
     x[2] =  E4*s23+E3*s2+E5*s234;
-    x[3] = - (q[1] + q[2] + q[3]);
+    x[3] = - (systemJoints[1] -> q + systemJoints[2] -> q  + systemJoints[3] -> q);
 }
 
 
-void updateJacob0(){
+void Tetis :: updateJacob0(){
   // Jacobian in coordenate system of the base
     J0[0][0] = - M5*c1 - E4*c23*s1 - E3*c2*s1 - E5*c234*s1;
     J0[0][1] = -c1*(E4*s23+E3*s2+E5*s234);
@@ -54,7 +56,7 @@ void updateJacob0(){
     J0[3][3] = -1.0;
 }
 
-void updateJacobN(){
+void Tetis :: updateJacobN(){
   // Jacobian in coordenate system of the actuator
     JN[0][0] = -M5*c234;
     JN[0][1] = E3*s34+E4*s4;
