@@ -1,13 +1,12 @@
 #ifndef ARDUINO4TETIS_H
 #define ARDUINO4TETIS_H
 
-#include <mcp_can.h>
-#include <Arduino.h>
-#include "ShieldJoystick.h"
-#include <MatlabSerial.h>
-
-
-
+#include "CanNet.h"
+#include "KinematicSystem.h"
+#include "Doris.h"
+#include "Tetis.h"
+#include "MatlabSerial.h"
+#include "TetisJoystick.h"
 
 /* HELPFUL UNIT CONVERSION */
 #define RADSTORPM (60/(2*PI)) // rpm /(rad/s)
@@ -94,13 +93,6 @@
 #define TET_J4_POL -1
 
 
-
-
-
-
-
-
-
 /* BLUETOOTH */
 // #define BT_MODE // wether bluetooth is used
 #define BT_BAUDRATE 57600
@@ -158,138 +150,20 @@
 
 extern HardwareSerial* serial; // ptr to serial port
 
-
-
 extern long unsigned h; // Sampling time(ms) for the control loops
 extern long unsigned tLastExec; // time(ms)loop was last executed
 extern long unsigned tDelay; // delay from time iteration was supposed to start
 
-
-
-
 extern Joystick* joystick;
 
-extern byte SYNC[2];
-extern byte OPERATIONAL[2];
-extern byte PREOPERATIONAL[2];
+extern CanNet canNet;
+extern User user;
 
-extern byte SHUTDOWN[8];
-extern byte FAULTRESET[8];
-extern byte ONANDENABLE[8];
-
-extern MCP_CAN CAN;    // Set CS pin
+extern BluetoothJoystick btJoystick;
+extern ShieldJoystick shJoystick;
+extern Joystick* joystick;
 
 extern MatlabSerial matlab;
-
-
-/* FUNCTION PROTOTYPES */
-// bool tetischeckCollision();
-// bool tetischeckJointLimits();
-// void uSet();
-
-
-
-
-
-
-
-class Joint {
-  public:
-    bool simulated;
-    bool synced;
-    float q = 0;
-    float qoffset = 0;
-    int eposPolarity;
-    long unsigned tLastHearbeat;
-    unsigned long maxVel;
-    unsigned long maxAcc;
-    float qcalib;
-    int gearRed;
-    unsigned int encCpr;
-    float u = 0;
-    int nodeID;
-    Joint(int ndId,int gr,float mv,float ma,float qc,unsigned int cpr, int pl, bool sim)
-    : nodeID(ndId),gearRed(gr),qcalib(qc), encCpr(cpr),
-    maxVel(mv),maxAcc(ma),eposPolarity(pl),simulated(sim){}
-
- };
-
-class KinematicSystem {
-  public:
-    String name;
-    unsigned int numOfJoints;
-    bool initialControl = false;
-    bool offsetRead = false;
-    Joint** systemJoints;
-    float xd[4];      // desired position of the actuator at (space of the joints)
-    float xddot[4];   // desired velocity of the actuator at (space of the joints)
-    float x[4];       // actual position of the actuator (operational space)
-    float xError[4];  // error in operational space
-    float qd[4];      // desired position[rad] for each joint (space of the joints)
-    float qError[4];  // error in joint space
-    virtual void updateControl(unsigned int operMode) = 0;
-    virtual void updateDirectKinematics() = 0;
-    virtual bool checkCollision() = 0;
-    virtual bool checkJointLimits() = 0;
-    KinematicSystem(Joint** sj,unsigned int numJ) : systemJoints(sj), numOfJoints(numJ){}
- };
-
-class Tetis : public KinematicSystem {
-    float c1, s1, c2, s2, c3, s3, c4, s4, c23, s23, c34, s34, c234, s234; // Tetis specific variables
-    float J0[4][4]; // Jacobian at the base (joint 0)
-    float JN[4][4]; // Jacobian at the actuator (joint n)
-    float kj = 1; // Joint control gain
-    float kp = 1; // proportionalFF control gain
-   public:
-    Tetis(Joint** sj) : KinematicSystem(sj,4){
-      name = "Tetis";
-    }
-    void updateControl(unsigned int operMode);
-    void updateJacob0();
-    void updateJacobN();
-    void updateDirectKinematics();
-    void updateDHData();
-    void initPosition();
-    void jointPosControl();
-    void evalTrajectory(unsigned int);
-    void trajectoryControl();
-    void joystickActuatorControl();
-    void joystickBaseControl();
-    bool checkCollision();
-    bool checkJointLimits();
- };
-
- class Doris : public KinematicSystem {
-    public:
-     Doris(Joint** sj) : KinematicSystem(sj,4){
-       name = "Doris";
-     }
-     void updateControl(unsigned int operMode);
-     void updateDirectKinematics();
-     bool checkCollision();
-     bool checkJointLimits();
-  };
-
-class CanNet : public MCP_CAN{
-  public:
-    unsigned int numOfKinS;
-    KinematicSystem** kinSystems;
-    CanNet(KinematicSystem** ks, unsigned int num,byte cs = 53) : MCP_CAN(cs), kinSystems(ks), numOfKinS(num){      }
-    void setupCan();
-    void canListener();
-    void readTPDO1(Joint*, byte*);
-    void checkHearbeat();
-    void setupHearbeat(KinematicSystem*,unsigned int hbTime = 1000);
-    void toAllNodesSdo(KinematicSystem*, byte*, bool ext = 0);
-    void zeroTPDOs(KinematicSystem*);
-    void zeroRPDOs(KinematicSystem*);
-    void setupTPDO1(KinematicSystem*);
-    void setupRPDO1(KinematicSystem*);
-    void setupVelocityMode(KinematicSystem*);
-    void printBuffer();
-    void uSet();
-    unsigned int getNumOfJoints(unsigned int ksNum);
-};
 
 class User{
   public:
@@ -300,12 +174,6 @@ class User{
     User(unsigned int ct = 4, bool dm = false,bool tm = false, bool um = 0) :
       controlType(ct),debugMode(dm),toMatlab(tm),useMode(um){}
 };
-
-
-extern User user;
-
-
-
 
 
 #endif  // EPOS2CONTROL_H
