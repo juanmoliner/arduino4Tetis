@@ -99,7 +99,7 @@ void CanNet :: zeroTPDOs(KinematicSystem* ks){
     serial -> println("DEBUG: CanNet :: zeroTPDOs(): zeroing all TPDOS");
   }
 
-  // Disable all PDOs in all nodes by writting zero  to number of objects mapped
+  // Disable all TPDOs in all nodes by writting zero  to number of objects mapped
   toAllNodesSdo(ks,TPDO1_NUM_0);
   toAllNodesSdo(ks,TPDO2_NUM_0);
   toAllNodesSdo(ks,TPDO3_NUM_0);
@@ -117,7 +117,7 @@ void CanNet :: zeroRPDOs(KinematicSystem* ks){
     serial -> println("DEBUG: CanNet :: zeroRPDOs(): zeroing all RPDOS");
    }
 
-  // Disable all PDOs in all nodes by writting zero  to number of objects mapped
+  // Disable all RPDOs in all nodes by writting zero  to number of objects mapped
   toAllNodesSdo(ks,RPDO1_NUM_0);
   toAllNodesSdo(ks,RPDO2_NUM_0);
   toAllNodesSdo(ks,RPDO3_NUM_0);
@@ -147,12 +147,17 @@ void CanNet :: setupRPDO1(KinematicSystem* ks){
 }
 
 void CanNet :: setupTPDO1(KinematicSystem* ks){
-    // Setup for PDO1 sending Velocity Actual and Position Actual Objects
-    byte TPDO1_INHIBIT_TIME[8] = {0x2B, 0x00, 0x18, 0x03, 0x00, 0x00, 0x00, 0x00};
-    byte TPDO1_TRANSMTYPE[8] = {0x2F, 0x00, 0x18, 0x02, 1, 0x00, 0x00, 0x00};
-    byte TPDO1_NUM_0[8] = {0x2F,0x00, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
-    byte TPDO1_NUM_1[8] = {0x2F,0x00, 0x1A, 0x00, 0x01, 0x00, 0x00, 0x00};
-    byte TPDO1_1MPO_POSITIONACTUAL[8] = {0x23, 0x00, 0x1A, 0x01, 0x20, 0x00, 0x64, 0x60};
+    // Setup for PDO1 sending  Position Actual Object
+    byte TPDO1_INHIBIT_TIME[8] =
+      {0x2B, 0x00, 0x18, 0x03, 0x00, 0x00, 0x00, 0x00};
+    byte TPDO1_TRANSMTYPE[8] =
+      {0x2F, 0x00, 0x18, 0x02, 1, 0x00, 0x00, 0x00};
+    byte TPDO1_NUM_0[8] =
+      {0x2F,0x00, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00};
+    byte TPDO1_NUM_1[8] =
+      {0x2F,0x00, 0x1A, 0x00, 0x01, 0x00, 0x00, 0x00};
+    byte TPDO1_1MPO_POSITIONACTUAL[8] =
+      {0x23, 0x00, 0x1A, 0x01, 0x20, 0x00, 0x64, 0x60};
 
     if(user.debugMode){
       serial -> println("DEBUG: setupTPDO1(): Setting up TPDO1");
