@@ -5,6 +5,7 @@
 
 #include <mcp_can.h>
 #include <Arduino.h>
+#include "Arduino4Tetis.h"
 
 
 class Tetis : public KinematicSystem {

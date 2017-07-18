@@ -3,6 +3,8 @@
 #ifndef KINEMATICSYSTEM_H
 #define KINEMATICSYSTEM_H
 
+#include "Arduino4Tetis.h"
+
 class Joint {
   public:
     bool simulated;

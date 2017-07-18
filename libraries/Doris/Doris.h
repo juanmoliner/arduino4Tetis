@@ -1,4 +1,5 @@
 // Doris.h
+#include "Arduino4Tetis.h"
 
 #ifndef DORIS_H
 #define DORIS_H

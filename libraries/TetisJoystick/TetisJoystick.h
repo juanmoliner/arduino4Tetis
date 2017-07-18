@@ -2,6 +2,7 @@
 #define SHIELDJOYSTICK_H
 
 #include <Arduino.h>
+#include "Arduino4Tetis.h"
 
 /* Define Shield Joystick connection pins */
 #define UP     A1

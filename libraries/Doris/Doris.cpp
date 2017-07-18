@@ -1,3 +1,7 @@
+// Doris.cpp
+
+#include "Arduino4Tetis.h"
+
 bool Doris :: checkJointLimits(){
   return false;
 }

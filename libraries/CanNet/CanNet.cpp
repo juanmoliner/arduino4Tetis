@@ -1,5 +1,5 @@
 // CanNet.cpp
-
+#include "Arduino4Tetis.h"
 
 void CanNet :: printBuffer(){
   // Receive data with check mode

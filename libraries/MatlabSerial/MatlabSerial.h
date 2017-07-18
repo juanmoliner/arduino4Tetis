@@ -1,7 +1,6 @@
 #ifndef MATLABSERIAL_H
 #define MATLABSERIAL_H
 
-#include "MatlabSerial.h"
 #include "Arduino4Tetis.h"
 
 class KinematicSystem;

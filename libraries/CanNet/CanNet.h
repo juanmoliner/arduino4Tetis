@@ -2,6 +2,8 @@
 #ifndef CANNET_H
 #define CANNET_H
 
+#include "Arduino4Tetis.h"
+
 class CanNet : public MCP_CAN{
   public:
     unsigned int numOfKinS;

@@ -1,6 +1,13 @@
 #ifndef ARDUINO4TETIS_H
 #define ARDUINO4TETIS_H
 
+class Joint;
+class KinematicSystem;
+class User;
+class CanNet;
+
+#include <mcp_can.h>
+#include <MatrixMath.h>
 #include "CanNet.h"
 #include "KinematicSystem.h"
 #include "Doris.h"
