@@ -1,12 +1,4 @@
-#include <Arduino.h>
-
-#include "CanNet.h"
-#include "KinematicSystem.h"
-#include "Doris.h"
-#include "Tetis.h"
-#include "MatlabSerial.h"
-#include "TetisJoystick.h"
-
+#include "Arduino4Tetis.h"
 
 
 long unsigned h = SAMP_TIME; // Sampling time(ms) for the control loops
@@ -175,7 +167,7 @@ void loop(){
     tetis.updateControl(user.controlType);    // calculate control
     // tetis.updateControl(4);    // calculate control
     // serial -> println("4");
-    canNet.uSet();                           // send control data to joints
+    canNet.uSetSDO();                           // send control data to joints
     // serial -> println("4");
   }
 }
